@@ -1,0 +1,97 @@
+substitutions:
+  devicename: jura-coffee-f50
+  friendly_name: Jura Coffee F50
+  device_description: Jura Impressa F50 - D1 Mini ESP8266
+
+packages:
+  device_base: !include common/device_base.yaml
+  wifi: !include common/wifi.yaml
+
+esphome:
+  friendly_name: ${friendly_name}
+
+esp8266:
+  board: d1_mini
+  framework:
+    version: recommended
+
+logger:
+  level: DEBUG
+
+uart:
+  id: uart_bus
+  tx_pin: D1
+  rx_pin: D2
+  baud_rate: 9600
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [jura_coffee]
+
+jura_coffee:
+  id: jura
+  uart_id: uart_bus
+  update_interval: 30s
+  # F50: tray bit=1 means tray is PRESENT (inverted vs. most other models)
+  ic_tray_inverted: true
+
+  tray_missing:
+    name: "${friendly_name} Tray Missing"
+  tank_empty:
+    name: "${friendly_name} Tank Empty"
+  need_clean:
+    name: "${friendly_name} Need Cleaning"
+
+  num_single_espresso:
+    name: "${friendly_name} Single Espressos"
+  num_double_espresso:
+    name: "${friendly_name} Double Espressos"
+  num_coffee:
+    name: "${friendly_name} Coffees"
+  num_double_coffee:
+    name: "${friendly_name} Double Coffees"
+  num_clean:
+    name: "${friendly_name} Cleanings"
+
+button:
+  - platform: template
+    name: "${friendly_name} Power On"
+    icon: mdi:power
+    on_press:
+      - jura_coffee.send_command:
+          id: jura
+          command: "AN:01"
+
+  - platform: template
+    name: "${friendly_name} Power Off"
+    icon: mdi:power-off
+    on_press:
+      - jura_coffee.send_command:
+          id: jura
+          command: "AN:02"
+
+  - platform: template
+    name: "${friendly_name} Rinse"
+    icon: mdi:water
+    on_press:
+      - jura_coffee.send_command:
+          id: jura
+          command: "FA:02"
+
+  - platform: template
+    name: "${friendly_name} Coffee"
+    icon: mdi:coffee
+    on_press:
+      - jura_coffee.send_command:
+          id: jura
+          command: "FA:06"
+
+  - platform: template
+    name: "${friendly_name} Double Coffee"
+    icon: mdi:coffee
+    on_press:
+      - jura_coffee.send_command:
+          id: jura
+          command: "FA:07"

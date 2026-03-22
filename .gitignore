@@ -1,0 +1,21 @@
+# ESPHome build artifacts
+.esphome/
+**/.pioenvs/
+**/.piolibdeps/
+components/**/__pycache__/
+**/*.pyc
+
+# Secrets
+secrets.yaml
+
+# Reference PDFs (local only)
+pdfs/
+
+# Project management (local only)
+.claude/
+CLAUDE.md
+PLAN.md
+
+# macOS
+.DS_Store
+**/.DS_Store
