@@ -151,6 +151,18 @@ All commands end with `\r\n`. Commands are uppercase, responses lowercase.
 
 See [`docs/jura-protocol.md`](docs/jura-protocol.md) for full protocol documentation.
 
+## Disclaimer
+
+> **Use at your own risk.**
+>
+> This project involves opening or modifying the service interface of a coffee machine and connecting third-party hardware to it. Doing so may **void your warranty**, and incorrect wiring or software could **damage your machine**.
+>
+> The `FN:` low-level commands in the protocol documentation can control individual actuators (pumps, heaters, valves) directly. Sending wrong command combinations may cause the machine to malfunction or be damaged. Never send `AN:0A` (EEPROM clear).
+>
+> This project is **not affiliated with, endorsed by, or supported by JURA Elektroapparate AG** in any way. All product names, trademarks, and protocols belong to their respective owners.
+>
+> The software is provided "as is", without warranty of any kind.
+
 ## References
 
 - Protocol documentation: http://protocoljura.wiki-site.com/
