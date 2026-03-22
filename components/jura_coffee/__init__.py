@@ -20,30 +20,83 @@ JuraCoffee = jura_coffee_ns.class_("JuraCoffee", cg.PollingComponent, uart.UARTD
 
 SendCommandAction = jura_coffee_ns.class_("SendCommandAction", automation.Action)
 
-CONF_IC_TRAY_BIT = "ic_tray_bit"
-CONF_IC_TANK_BIT = "ic_tank_bit"
+CONF_MACHINE_TYPE     = "machine_type"
+CONF_IC_TRAY_BIT      = "ic_tray_bit"
+CONF_IC_TANK_BIT      = "ic_tank_bit"
 CONF_IC_NEED_CLEAN_BIT = "ic_need_clean_bit"
-CONF_IC_TRAY_INVERTED = "ic_tray_inverted"
+CONF_IC_TRAY_INVERTED  = "ic_tray_inverted"
 
-CONF_TRAY_MISSING = "tray_missing"
-CONF_TANK_EMPTY = "tank_empty"
-CONF_NEED_CLEAN = "need_clean"
+CONF_TRAY_MISSING        = "tray_missing"
+CONF_TANK_EMPTY          = "tank_empty"
+CONF_NEED_CLEAN          = "need_clean"
 CONF_NUM_SINGLE_ESPRESSO = "num_single_espresso"
 CONF_NUM_DOUBLE_ESPRESSO = "num_double_espresso"
-CONF_NUM_COFFEE = "num_coffee"
-CONF_NUM_DOUBLE_COFFEE = "num_double_coffee"
-CONF_NUM_CLEAN = "num_clean"
+CONF_NUM_COFFEE          = "num_coffee"
+CONF_NUM_DOUBLE_COFFEE   = "num_double_coffee"
+CONF_NUM_CLEAN           = "num_clean"
 
-CONFIG_SCHEMA = (
+# IC: bit profiles per known machine type.
+# ic_tray_bit / ic_tank_bit / ic_need_clean_bit: bit position in IC: byte 0.
+# ic_tray_inverted: True when bit=1 means tray PRESENT (F50 quirk).
+# Profiles for untested models are based on community reports — verify with logs.
+MACHINE_PROFILES = {
+    "f50": {
+        CONF_IC_TRAY_BIT:       4,
+        CONF_IC_TANK_BIT:       5,
+        CONF_IC_NEED_CLEAN_BIT: 0,
+        CONF_IC_TRAY_INVERTED:  True,   # F50: bit=1 means tray present
+    },
+    "e6": {
+        CONF_IC_TRAY_BIT:       4,
+        CONF_IC_TANK_BIT:       5,
+        CONF_IC_NEED_CLEAN_BIT: 0,
+        CONF_IC_TRAY_INVERTED:  False,  # unconfirmed — verify with IC: logs
+    },
+    "j6": {
+        CONF_IC_TRAY_BIT:       4,
+        CONF_IC_TANK_BIT:       5,
+        CONF_IC_NEED_CLEAN_BIT: 0,
+        CONF_IC_TRAY_INVERTED:  False,  # unconfirmed — verify with IC: logs
+    },
+    "x7": {
+        CONF_IC_TRAY_BIT:       4,
+        CONF_IC_TANK_BIT:       5,
+        CONF_IC_NEED_CLEAN_BIT: 0,
+        CONF_IC_TRAY_INVERTED:  False,  # unconfirmed — verify with IC: logs
+    },
+}
+
+MACHINE_TYPES = list(MACHINE_PROFILES.keys())
+
+# Global IC: defaults used when no machine_type and no explicit ic_* keys are set.
+IC_DEFAULTS = {
+    CONF_IC_TRAY_BIT:       4,
+    CONF_IC_TANK_BIT:       5,
+    CONF_IC_NEED_CLEAN_BIT: 0,
+    CONF_IC_TRAY_INVERTED:  False,
+}
+
+
+def _apply_machine_profile(config):
+    """Merge machine profile into config, explicit ic_* keys take precedence."""
+    profile = MACHINE_PROFILES.get(config.get(CONF_MACHINE_TYPE, ""), {})
+    merged = {**IC_DEFAULTS, **profile}
+    for key, value in merged.items():
+        if key not in config:
+            config[key] = value
+    return config
+
+
+CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(JuraCoffee),
-            # IC: byte bit positions — adjust for non-standard models
-            cv.Optional(CONF_IC_TRAY_BIT, default=4): cv.int_range(min=0, max=7),
-            cv.Optional(CONF_IC_TANK_BIT, default=5): cv.int_range(min=0, max=7),
-            cv.Optional(CONF_IC_NEED_CLEAN_BIT, default=0): cv.int_range(min=0, max=7),
-            # Set true when bit=1 means tray is PRESENT (e.g. Impressa F50)
-            cv.Optional(CONF_IC_TRAY_INVERTED, default=False): cv.boolean,
+            cv.Optional(CONF_MACHINE_TYPE): cv.one_of(*MACHINE_TYPES, lower=True),
+            # IC: bit positions — set automatically by machine_type, or override manually
+            cv.Optional(CONF_IC_TRAY_BIT):       cv.int_range(min=0, max=7),
+            cv.Optional(CONF_IC_TANK_BIT):       cv.int_range(min=0, max=7),
+            cv.Optional(CONF_IC_NEED_CLEAN_BIT): cv.int_range(min=0, max=7),
+            cv.Optional(CONF_IC_TRAY_INVERTED):  cv.boolean,
             cv.Optional(CONF_TRAY_MISSING): binary_sensor.binary_sensor_schema(
                 icon="mdi:tray-alert",
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
@@ -89,7 +142,8 @@ CONFIG_SCHEMA = (
         }
     )
     .extend(cv.polling_component_schema("60s"))
-    .extend(uart.UART_DEVICE_SCHEMA)
+    .extend(uart.UART_DEVICE_SCHEMA),
+    _apply_machine_profile,
 )
 
 

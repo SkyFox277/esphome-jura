@@ -70,8 +70,8 @@ external_components:
 jura_coffee:
   id: jura
   uart_id: uart_bus
+  machine_type: f50        # auto-configures IC: bit positions for this model
   update_interval: 30s
-  ic_tray_inverted: true   # F50 only: bit=1 means tray PRESENT
 
   tray_missing:
     name: "Tray Missing"
@@ -102,10 +102,11 @@ esphome upload --device jura-coffee-f50.local jura-coffee-f50.yaml
 | -------------------- | ------- | ------- | -------------------------------------------------- |
 | `uart_id`            | id      | —       | UART bus ID                                        |
 | `update_interval`    | time    | `60s`   | How often to poll `IC:` and `RT:0000`              |
-| `ic_tray_bit`        | int 0–7 | `4`     | Bit position in IC: byte 0 for tray sensor         |
-| `ic_tank_bit`        | int 0–7 | `5`     | Bit position in IC: byte 0 for tank sensor         |
-| `ic_need_clean_bit`  | int 0–7 | `0`     | Bit position in IC: byte 0 for cleaning sensor     |
-| `ic_tray_inverted`   | bool    | `false` | `true` if bit=1 means tray PRESENT (e.g. F50)      |
+| `machine_type`       | string  | —       | Known model: `f50`, `e6`, `j6`, `x7` — auto-sets IC: bits |
+| `ic_tray_bit`        | int 0–7 | `4`     | Bit position in IC: byte 0 for tray sensor (overrides machine_type) |
+| `ic_tank_bit`        | int 0–7 | `5`     | Bit position in IC: byte 0 for tank sensor (overrides machine_type) |
+| `ic_need_clean_bit`  | int 0–7 | `0`     | Bit position in IC: byte 0 for cleaning sensor (overrides machine_type) |
+| `ic_tray_inverted`   | bool    | `false` | `true` if bit=1 means tray PRESENT — set automatically for `f50` |
 | `tray_missing`       | sensor  | —       | Binary sensor: tray missing                        |
 | `tank_empty`         | sensor  | —       | Binary sensor: water tank empty                    |
 | `need_clean`         | sensor  | —       | Binary sensor: cleaning required                   |
