@@ -45,7 +45,7 @@ jobs:
           EOF
 
       - name: Validate YAML
-        run: esphome validate jura-coffee-f50.yaml
+        run: esphome config jura-coffee-f50.yaml
 
       - name: Compile firmware
         run: esphome compile jura-coffee-f50.yaml
