@@ -98,23 +98,27 @@ esphome upload --device jura-coffee-f50.local jura-coffee-f50.yaml
 
 ## Configuration Reference
 
-| Key                  | Type    | Default | Description                                        |
-| -------------------- | ------- | ------- | -------------------------------------------------- |
-| `uart_id`            | id      | —       | UART bus ID                                        |
-| `update_interval`    | time    | `60s`   | How often to poll `IC:` and `RT:0000`              |
-| `machine_type`       | string  | —       | Known model: `f50`, `e6`, `j6`, `x7` — auto-sets IC: bits |
-| `ic_tray_bit`        | int 0–7 | `4`     | Bit position in IC: byte 0 for tray sensor (overrides machine_type) |
-| `ic_tank_bit`        | int 0–7 | `5`     | Bit position in IC: byte 0 for tank sensor (overrides machine_type) |
-| `ic_need_clean_bit`  | int 0–7 | `0`     | Bit position in IC: byte 0 for cleaning sensor (overrides machine_type) |
-| `ic_tray_inverted`   | bool    | `false` | `true` if bit=1 means tray PRESENT — set automatically for `f50` |
-| `tray_missing`       | sensor  | —       | Binary sensor: tray missing                        |
-| `tank_empty`         | sensor  | —       | Binary sensor: water tank empty                    |
-| `need_clean`         | sensor  | —       | Binary sensor: cleaning required                   |
-| `num_single_espresso`| sensor  | —       | Counter: single espressos                          |
-| `num_double_espresso`| sensor  | —       | Counter: double espressos                          |
-| `num_coffee`         | sensor  | —       | Counter: coffees                                   |
-| `num_double_coffee`  | sensor  | —       | Counter: double coffees                            |
-| `num_clean`          | sensor  | —       | Counter: cleanings                                 |
+| Key                      | Type    | Default | Description                                                              |
+| ------------------------ | ------- | ------- | ------------------------------------------------------------------------ |
+| `uart_id`                | id      | —       | UART bus ID                                                              |
+| `update_interval`        | time    | `60s`   | How often to poll `IC:` and `RT:0000`                                    |
+| `machine_type`           | string  | —       | Known model: `f50`, `e6`, `j6`, `x7` etc. — auto-sets all IC: bits      |
+| `ic_tray_bit`            | int 0–7 | `4`     | IC: byte 0 bit for tray sensor (overrides `machine_type`)               |
+| `ic_tank_bit`            | int 0–7 | `5`     | IC: byte 0 bit for tank sensor (overrides `machine_type`)               |
+| `ic_need_clean_bit`      | int 0–7 | `0`     | IC: byte 0 bit for cleaning sensor (overrides `machine_type`)           |
+| `ic_tray_inverted`       | bool    | `false` | `true` if bit=1 means tray PRESENT (F50 quirk)                          |
+| `ic_tank_inverted`       | bool    | `false` | `true` if bit=1 means tank OK, 0=empty (F50 quirk)                      |
+| `ic_need_clean_inverted` | bool    | `false` | `true` if bit=1 means clean NOT needed, 0=needed (F50 quirk)            |
+| `tray_missing`           | sensor  | —       | Binary sensor: tray missing                                              |
+| `tank_empty`             | sensor  | —       | Binary sensor: water tank empty                                          |
+| `need_clean`             | sensor  | —       | Binary sensor: cleaning required                                         |
+| `num_single_espresso`    | sensor  | —       | Counter: EEPROM addr 0x0000 (on F50: Coffee FA:06)                       |
+| `num_double_espresso`    | sensor  | —       | Counter: EEPROM addr 0x0001 (on F50: Double Coffee FA:07)                |
+| `num_coffee`             | sensor  | —       | Counter: EEPROM addr 0x0002 (on F50: always 0 — no small-size button)   |
+| `num_double_coffee`      | sensor  | —       | Counter: EEPROM addr 0x0003 (on F50: always 0)                          |
+| `num_clean`              | sensor  | —       | Counter: cleanings (EEPROM addr 0x0008)                                  |
+| `num_rinse`              | sensor  | —       | Counter: rinse cycles (EEPROM addr 0x0007)                               |
+| `num_descale`            | sensor  | —       | Counter: descaling cycles (EEPROM addr 0x0009)                           |
 
 ## Sending Commands
 

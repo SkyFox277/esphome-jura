@@ -25,13 +25,19 @@ class JuraCoffee : public PollingComponent, public uart::UARTDevice {
   void set_num_coffee_sensor(sensor::Sensor *s) { num_coffee_ = s; }
   void set_num_double_coffee_sensor(sensor::Sensor *s) { num_double_coffee_ = s; }
   void set_num_clean_sensor(sensor::Sensor *s) { num_clean_ = s; }
+  void set_num_rinse_sensor(sensor::Sensor *s) { num_rinse_ = s; }
+  void set_num_descale_sensor(sensor::Sensor *s) { num_descale_ = s; }
 
   // IC: bit-position configuration (model-specific)
   void set_ic_tray_bit(uint8_t bit) { ic_tray_bit_ = bit; }
   void set_ic_tank_bit(uint8_t bit) { ic_tank_bit_ = bit; }
   void set_ic_need_clean_bit(uint8_t bit) { ic_need_clean_bit_ = bit; }
-  // Some models (e.g. F50): bit=1 means tray PRESENT → invert to get tray_missing
+  // F50: bit=1 means tray PRESENT → invert to get tray_missing
   void set_ic_tray_inverted(bool inv) { ic_tray_inverted_ = inv; }
+  // F50: bit=1 means tank OK → invert to get tank_empty
+  void set_ic_tank_inverted(bool inv) { ic_tank_inverted_ = inv; }
+  // F50: bit=1 means no cleaning needed → invert to get need_clean
+  void set_ic_need_clean_inverted(bool inv) { ic_need_clean_inverted_ = inv; }
 
   // Send a raw Jura command (e.g. "AN:01", "FA:02", "IC:")
   void send_command(const std::string &command);
@@ -51,12 +57,16 @@ class JuraCoffee : public PollingComponent, public uart::UARTDevice {
   sensor::Sensor *num_coffee_{nullptr};
   sensor::Sensor *num_double_coffee_{nullptr};
   sensor::Sensor *num_clean_{nullptr};
+  sensor::Sensor *num_rinse_{nullptr};
+  sensor::Sensor *num_descale_{nullptr};
 
   // IC: bit positions — defaults match most Jura models
   uint8_t ic_tray_bit_{4};
   uint8_t ic_tank_bit_{5};
   uint8_t ic_need_clean_bit_{0};
-  bool    ic_tray_inverted_{false};  // set true for F50: bit=1 means tray present
+  bool    ic_tray_inverted_{false};
+  bool    ic_tank_inverted_{false};
+  bool    ic_need_clean_inverted_{false};
 
   // Every Nth update() call read EEPROM counters (they change slowly)
   uint8_t update_counter_{0};

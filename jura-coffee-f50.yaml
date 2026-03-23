@@ -53,6 +53,10 @@ jura_coffee:
     name: "${friendly_name} Double Coffees"
   num_clean:
     name: "${friendly_name} Cleanings"
+  num_rinse:
+    name: "${friendly_name} Rinses"
+  num_descale:
+    name: "${friendly_name} Descalings"
 
 # ── Buttons ────────────────────────────────────────────────────────────────────
 #

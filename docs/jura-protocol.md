@@ -315,20 +315,26 @@ Response: `ic:XXYYZZ00` (hex string, multiple bytes)
 
 IC: bit positions differ between model families. Two distinct layouts have been identified:
 
-**Layout A — F50 (confirmed on hardware)**
+**Layout A — F50 (confirmed from hardware sample data)**
 
-| Bit | Value 1 means          | Value 0 means   | Notes                              |
-| --- | ---------------------- | --------------- | ---------------------------------- |
-| 0   | Cleaning required      | OK              | ✅ confirmed                        |
-| 4   | Tray **inserted**      | Tray missing    | ✅ confirmed — inverted logic!      |
-| 5   | Tank empty             | Tank OK         | ⚠️ unconfirmed for F50              |
+All F50 status bits follow inverted logic: **0 = problem, 1 = OK**.
 
-> **F50 quirk:** Bit 4 = 1 means tray PRESENT (not missing) — opposite of most models.
-> Set `ic_tray_inverted: true` in YAML. Implementation: `tray_missing = !((val >> 4) & 1)`.
+| Bit | Value 1 means         | Value 0 means      | Config key              | Notes          |
+| --- | --------------------- | ------------------ | ----------------------- | -------------- |
+| 1   | Cleaning not needed   | Clean required     | `ic_need_clean_inverted`| ✅ confirmed   |
+| 3   | Tank OK               | Tank empty/missing | `ic_tank_inverted`      | ✅ confirmed   |
+| 4   | Tray **inserted**     | Tray missing       | `ic_tray_inverted`      | ✅ confirmed   |
 
 Example F50 responses:
-- `ic:DFB01E00` → Byte 0 = `0xDF` = `11011111` → bit4=1 (tray present), bit5=0 (tank OK)
-- `ic:CFB01E00` → Byte 0 = `0xCF` = `11001111` → bit4=0 (tray missing)
+```
+ic:DFB01E00  0xDF = 1101 1111  → bit1=1, bit3=1, bit4=1 → all OK
+ic:D7B01E00  0xD7 = 1101 0111  → bit3=0 → tank empty
+ic:CFB01E00  0xCF = 1100 1111  → bit4=0 → tray missing
+ic:D9B01E00  0xD9 = 1101 1001  → bit1=0, bit2=0 → cleaning required ("Pflege drücken")
+```
+
+> Bits 5, 6, 7 always vary between sessions and do not encode sensor state on F50.
+> Bit 5 is always 0 in all known F50 samples.
 
 **Layout B — E6, E8, ENA, J6 (confirmed from multiple community projects)**
 
@@ -350,30 +356,48 @@ Example E6/ENA responses:
 ### RT:0000 — Read EEPROM Counters
 
 Command: `RT:0000`
-Response: `rt:XXXXXXXXXXXXXXXX...` (min. 35 hex characters)
+Response: `rt:` + 64 hex chars = 32 bytes = 16 × 16-bit words (total 67 chars)
 
-#### Known offsets (confirmed for F50)
+`RT:XXYY` reads the 16-word line starting at EEPROM word address `0xXXYY`.
+Each 4-char hex group in the response is one 16-bit word (big-endian).
 
-| Offset | Length | Content           | Hex example | Notes                         |
-| ------ | ------ | ----------------- | ----------- | ----------------------------- |
-| 3      | 4      | Single espresso   | `0000`      | F50: always 0 (no espresso)   |
-| 7      | 4      | Double espresso   | `0000`      | F50: always 0                 |
-| 11     | 4      | Coffee            | `0042`      | = 66 coffees                  |
-| 15     | 4      | Double coffee     | `0018`      | = 24                          |
-| 19     | 4      | Counter 1         | ?           | meaning unknown               |
-| 23     | 4      | Counter 2         | ?           | meaning unknown               |
-| 27     | 4      | Counter 3         | ?           | meaning unknown               |
-| 31     | 4      | Cleanings 1       | `0008`      | = 8 cleanings                 |
-| 35     | 4      | Counter 4         | ?           | meaning unknown               |
-| 39     | 4      | Counter 5         | ?           | meaning unknown               |
-| 43     | 4      | Counter 6         | ?           | meaning unknown               |
-| 47     | 4      | Counter 7         | ?           | meaning unknown               |
-| 51     | 4      | Counter 8         | ?           | meaning unknown               |
-| 55     | 4      | Cleanings 2 (?)   | ?           | from reference code, unconfirmed |
-| 59     | 4      | Counter 9         | ?           | meaning unknown               |
-| 63     | 4      | Counter 10        | ?           | meaning unknown               |
+#### EEPROM word map — confirmed from F50 sample data + community analysis
 
-> **TODO:** Identify counters by observation — brew coffee, read counters after 5 min, match offset.
+| EEPROM addr | RT offset | Length | Content                               | ESPHome sensor key      | Notes                                       |
+| ----------- | --------- | ------ | ------------------------------------- | ----------------------- | ------------------------------------------- |
+| 0x0000      | 3         | 4      | Bezüge Normal (normal-size coffee)    | `num_single_espresso`   | F50: Coffee (FA:06) increments this         |
+| 0x0001      | 7         | 4      | Bezüge doppelte Normal                | `num_double_espresso`   | F50: Double Coffee (FA:07) increments this  |
+| 0x0002      | 11        | 4      | Bezüge klein (small / espresso)       | `num_coffee`            | F50: always 0 (no small-size button)        |
+| 0x0003      | 15        | 4      | Bezüge 2x klein                       | `num_double_coffee`     | F50: always 0                               |
+| 0x0004      | 19        | 4      | Bezüge Espresso?                      | —                       | meaning model-specific, 0 on F50            |
+| 0x0005      | 23        | 4      | Spezialkaffee                         | —                       | —                                           |
+| 0x0006      | 27        | 4      | Pulver (powder / grounds counter)     | —                       | —                                           |
+| 0x0007      | 31        | 4      | Spülvorgänge (rinse count)            | `num_rinse`             | ✅ confirmed — increments on FA:02          |
+| 0x0008      | 35        | 4      | Reinigungszyklen (cleaning cycles)    | `num_clean`             | ✅ confirmed — actual cleaning counter      |
+| 0x0009      | 39        | 4      | Entkalkungszyklen (descaling cycles)  | `num_descale`           | ✅ confirmed                                |
+| 0x000A      | 43        | 4      | unknown                               | —                       | —                                           |
+| 0x000B      | 47        | 4      | unknown (typically 17)                | —                       | —                                           |
+| 0x000C      | 51        | 4      | unknown (typically 1)                 | —                       | —                                           |
+| 0x000D      | 55        | 4      | unknown (typically 174)               | —                       | —                                           |
+| 0x000E      | 59        | 4      | unknown                               | —                       | value varies across sessions                |
+| 0x000F      | 63        | 4      | Bezüge seit letzter Entkalkung        | —                       | resets after descaling                      |
+
+Example F50 response (decoded):
+```
+rt:0FF307B210630BB1000000140077392E002D000D167800000000021B00020040
+     ^^^^              → 0x0FF3 = 4083 Normal coffees (addr 0x0000)
+         ^^^^          → 0x07B2 = 1970 Double coffees (addr 0x0001)
+                     ^^^^       → 0x392E = 14638 Rinses (addr 0x0007)
+                         ^^^^   → 0x002D = 45 Cleanings (addr 0x0008)
+                             ^^^^→ 0x000D = 13 Descalings (addr 0x0009)
+```
+
+> **Note on counter labels:** The ESPHome keys `num_single_espresso`/`num_double_espresso`
+> map to EEPROM addresses 0x0000/0x0001. On the F50 (no espresso), these are the
+> actual coffee/double-coffee counters. The keys `num_coffee`/`num_double_coffee`
+> map to addresses 0x0002/0x0003 which are always 0 on the F50.
+> This naming inconsistency is a known quirk — use `num_single_espresso` for
+> coffee counts on F50.
 
 ### RR: — Read RAM (Debug)
 

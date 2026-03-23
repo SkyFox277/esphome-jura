@@ -21,10 +21,12 @@ JuraCoffee = jura_coffee_ns.class_("JuraCoffee", cg.PollingComponent, uart.UARTD
 SendCommandAction = jura_coffee_ns.class_("SendCommandAction", automation.Action)
 
 CONF_MACHINE_TYPE     = "machine_type"
-CONF_IC_TRAY_BIT      = "ic_tray_bit"
-CONF_IC_TANK_BIT      = "ic_tank_bit"
-CONF_IC_NEED_CLEAN_BIT = "ic_need_clean_bit"
-CONF_IC_TRAY_INVERTED  = "ic_tray_inverted"
+CONF_IC_TRAY_BIT             = "ic_tray_bit"
+CONF_IC_TANK_BIT             = "ic_tank_bit"
+CONF_IC_NEED_CLEAN_BIT       = "ic_need_clean_bit"
+CONF_IC_TRAY_INVERTED        = "ic_tray_inverted"
+CONF_IC_TANK_INVERTED        = "ic_tank_inverted"
+CONF_IC_NEED_CLEAN_INVERTED  = "ic_need_clean_inverted"
 
 CONF_TRAY_MISSING        = "tray_missing"
 CONF_TANK_EMPTY          = "tank_empty"
@@ -34,6 +36,8 @@ CONF_NUM_DOUBLE_ESPRESSO = "num_double_espresso"
 CONF_NUM_COFFEE          = "num_coffee"
 CONF_NUM_DOUBLE_COFFEE   = "num_double_coffee"
 CONF_NUM_CLEAN           = "num_clean"
+CONF_NUM_RINSE           = "num_rinse"
+CONF_NUM_DESCALE         = "num_descale"
 
 # IC: bit profiles per known machine type.
 # ic_tray_bit / ic_tank_bit / ic_need_clean_bit: bit position in IC: byte 0.
@@ -43,12 +47,16 @@ CONF_NUM_CLEAN           = "num_clean"
 # Confirmed = verified with real hardware. Unconfirmed = from code/docs analysis only.
 MACHINE_PROFILES = {
     # ── Impressa F50 ─────────────────────────────────────────────────────────
-    # Confirmed: bit4=1 means tray PRESENT (inverted). bit5=tank (unconfirmed).
+    # Confirmed from hardware samples (F50.md):
+    #   0xDF=normal, 0xD7=tank missing (bit3→0), 0xCF=tray missing (bit4→0),
+    #   0xD9=clean needed (bit1→0). All F50 status bits: 0=problem, 1=ok.
     "f50": {
-        CONF_IC_TRAY_BIT:       4,
-        CONF_IC_TANK_BIT:       5,
-        CONF_IC_NEED_CLEAN_BIT: 0,
-        CONF_IC_TRAY_INVERTED:  True,
+        CONF_IC_TRAY_BIT:            4,
+        CONF_IC_TANK_BIT:            3,     # confirmed: bit3=0 → tank empty
+        CONF_IC_NEED_CLEAN_BIT:      1,     # confirmed: bit1=0 → clean needed
+        CONF_IC_TRAY_INVERTED:       True,
+        CONF_IC_TANK_INVERTED:       True,
+        CONF_IC_NEED_CLEAN_INVERTED: True,
     },
     # ── E-series (E6, E8, E65) ───────────────────────────────────────────────
     # Confirmed from multiple sources: bit0=tray missing, bit1=tank empty.
@@ -104,10 +112,12 @@ MACHINE_TYPES = list(MACHINE_PROFILES.keys())
 
 # Global IC: defaults used when no machine_type and no explicit ic_* keys are set.
 IC_DEFAULTS = {
-    CONF_IC_TRAY_BIT:       4,
-    CONF_IC_TANK_BIT:       5,
-    CONF_IC_NEED_CLEAN_BIT: 0,
-    CONF_IC_TRAY_INVERTED:  False,
+    CONF_IC_TRAY_BIT:            4,
+    CONF_IC_TANK_BIT:            5,
+    CONF_IC_NEED_CLEAN_BIT:      0,
+    CONF_IC_TRAY_INVERTED:       False,
+    CONF_IC_TANK_INVERTED:       False,
+    CONF_IC_NEED_CLEAN_INVERTED: False,
 }
 
 
@@ -127,10 +137,12 @@ CONFIG_SCHEMA = cv.All(
             cv.GenerateID(): cv.declare_id(JuraCoffee),
             cv.Optional(CONF_MACHINE_TYPE): cv.one_of(*MACHINE_TYPES, lower=True),
             # IC: bit positions — set automatically by machine_type, or override manually
-            cv.Optional(CONF_IC_TRAY_BIT):       cv.int_range(min=0, max=7),
-            cv.Optional(CONF_IC_TANK_BIT):       cv.int_range(min=0, max=7),
-            cv.Optional(CONF_IC_NEED_CLEAN_BIT): cv.int_range(min=0, max=7),
-            cv.Optional(CONF_IC_TRAY_INVERTED):  cv.boolean,
+            cv.Optional(CONF_IC_TRAY_BIT):            cv.int_range(min=0, max=7),
+            cv.Optional(CONF_IC_TANK_BIT):            cv.int_range(min=0, max=7),
+            cv.Optional(CONF_IC_NEED_CLEAN_BIT):      cv.int_range(min=0, max=7),
+            cv.Optional(CONF_IC_TRAY_INVERTED):       cv.boolean,
+            cv.Optional(CONF_IC_TANK_INVERTED):       cv.boolean,
+            cv.Optional(CONF_IC_NEED_CLEAN_INVERTED): cv.boolean,
             cv.Optional(CONF_TRAY_MISSING): binary_sensor.binary_sensor_schema(
                 icon="mdi:tray-alert",
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
@@ -173,6 +185,18 @@ CONFIG_SCHEMA = cv.All(
                 accuracy_decimals=0,
                 state_class=STATE_CLASS_TOTAL_INCREASING,
             ),
+            cv.Optional(CONF_NUM_RINSE): sensor.sensor_schema(
+                unit_of_measurement=UNIT_EMPTY,
+                icon="mdi:water-sync",
+                accuracy_decimals=0,
+                state_class=STATE_CLASS_TOTAL_INCREASING,
+            ),
+            cv.Optional(CONF_NUM_DESCALE): sensor.sensor_schema(
+                unit_of_measurement=UNIT_EMPTY,
+                icon="mdi:water-minus",
+                accuracy_decimals=0,
+                state_class=STATE_CLASS_TOTAL_INCREASING,
+            ),
         }
     )
     .extend(cv.polling_component_schema("60s"))
@@ -190,6 +214,8 @@ async def to_code(config):
     cg.add(var.set_ic_tank_bit(config[CONF_IC_TANK_BIT]))
     cg.add(var.set_ic_need_clean_bit(config[CONF_IC_NEED_CLEAN_BIT]))
     cg.add(var.set_ic_tray_inverted(config[CONF_IC_TRAY_INVERTED]))
+    cg.add(var.set_ic_tank_inverted(config[CONF_IC_TANK_INVERTED]))
+    cg.add(var.set_ic_need_clean_inverted(config[CONF_IC_NEED_CLEAN_INVERTED]))
 
     for key, setter in [
         (CONF_TRAY_MISSING, "set_tray_missing_sensor"),
@@ -206,6 +232,8 @@ async def to_code(config):
         (CONF_NUM_COFFEE, "set_num_coffee_sensor"),
         (CONF_NUM_DOUBLE_COFFEE, "set_num_double_coffee_sensor"),
         (CONF_NUM_CLEAN, "set_num_clean_sensor"),
+        (CONF_NUM_RINSE, "set_num_rinse_sensor"),
+        (CONF_NUM_DESCALE, "set_num_descale_sensor"),
     ]:
         if key in config:
             sens = await sensor.new_sensor(config[key])
