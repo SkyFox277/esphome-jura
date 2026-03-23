@@ -43,18 +43,24 @@ Jura 7-pin connector (pins numbered right to left, looking at the port):
 
 ## Installation
 
-### 1. Copy component
+### 1. Copy files
 
-Copy the `components/jura_coffee/` folder into your ESPHome config directory:
+Copy the `components/` and `common/` folders into your ESPHome config directory:
 
 ```
 <esphome-config>/
-└── components/
-    └── jura_coffee/
-        ├── __init__.py
-        ├── jura_coffee.h
-        └── jura_coffee.cpp
+├── components/
+│   └── jura_coffee/
+│       ├── __init__.py
+│       ├── jura_coffee.h
+│       └── jura_coffee.cpp
+└── common/
+    ├── device_base.yaml    # uptime, WiFi signal, status sensors
+    └── wifi.yaml           # WiFi, API, OTA, captive portal
 ```
+
+> `common/` is only needed if you use `jura-coffee-f50.yaml` as a starting point.
+> If you write your own YAML from scratch, only `components/jura_coffee/` is required.
 
 ### 2. Configure your device YAML
 
