@@ -95,6 +95,15 @@ Stand: 2026-03-23
 
 ---
 
+## Maintenance
+
+### M1 — GitHub Actions Node.js upgrade (before June 2026)
+- [ ] Update `actions/checkout` to v5+ (Node.js 24 support)
+- [ ] Update `actions/setup-python` to v6+
+- [ ] Update `actions/cache` to v5+
+
+---
+
 ## Offene Fragen / Zu untersuchen
 
 - IC: Bits 0, 2, 5, 6, 7 — Bedeutung unbekannt (F50)
