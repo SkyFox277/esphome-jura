@@ -185,19 +185,19 @@ MIT — see [LICENSE](LICENSE).
 
 This project was developed independently. The following community projects were used as **protocol documentation references** (no code was copied):
 
-| Project                                                                    | License      | Role                                              |
-| -------------------------------------------------------------------------- | ------------ | ------------------------------------------------- |
-| [ryanalden/esphome-jura-component](https://github.com/ryanalden/esphome-jura-component) | No license   | ESPHome integration reference                     |
-| [Jutta-Proto/protocol-cpp](https://github.com/Jutta-Proto/protocol-cpp)   | GPL-3.0      | Protocol encoding/decoding reference              |
-| [Jutta-Proto/hardware-pi](https://github.com/Jutta-Proto/hardware-pi)     | GPL-3.0      | Hardware interface reference                      |
-| [alextrical/Jura-F7-ESPHOME](https://github.com/alextrical/Jura-F7-ESPHOME) | GPL-3.0   | F7 model FA: command reference                    |
-| [thankthemaker/sharespresso](https://github.com/thankthemaker/sharespresso) | MIT         | ENA/E-series command reference                    |
-| [oliverk71/Coffeemaker-Payment-System](https://github.com/oliverk71/Coffeemaker-Payment-System) | MIT | Payment system integration reference    |
-| [Q42/coffeehack](https://github.com/Q42/coffeehack)                       | No license   | Protocol encoding reference                       |
-| [tiaanv/jura](https://github.com/tiaanv/jura)                             | No license   | General protocol reference                        |
-| [sklas/CofFi](https://github.com/sklas/CofFi)                             | No license   | General protocol reference                        |
-| [niklasdathe/jurabridge](https://github.com/niklasdathe/jurabridge)       | No license   | General protocol reference                        |
-| [thomaswitt/CoffeeMaker](https://github.com/thomaswitt/CoffeeMaker)       | No license   | General protocol reference                        |
+| Project                                                                    | License      | Accessed    | Role                                              |
+| -------------------------------------------------------------------------- | ------------ | ----------- | ------------------------------------------------- |
+| [ryanalden/esphome-jura-component](https://github.com/ryanalden/esphome-jura-component) | No license   | 2026-03-23  | ESPHome integration reference                     |
+| [Jutta-Proto/protocol-cpp](https://github.com/Jutta-Proto/protocol-cpp)   | GPL-3.0      | 2026-03-23  | Protocol encoding/decoding reference              |
+| [Jutta-Proto/hardware-pi](https://github.com/Jutta-Proto/hardware-pi)     | GPL-3.0      | 2026-03-23  | Hardware interface reference                      |
+| [alextrical/Jura-F7-ESPHOME](https://github.com/alextrical/Jura-F7-ESPHOME) | GPL-3.0   | 2026-03-23  | F7 model FA: command reference                    |
+| [thankthemaker/sharespresso](https://github.com/thankthemaker/sharespresso) | MIT         | 2026-03-23  | ENA/E-series command reference                    |
+| [oliverk71/Coffeemaker-Payment-System](https://github.com/oliverk71/Coffeemaker-Payment-System) | MIT | 2026-03-23 | Payment system integration reference    |
+| [Q42/coffeehack](https://github.com/Q42/coffeehack)                       | No license   | 2026-03-23  | Protocol encoding reference                       |
+| [tiaanv/jura](https://github.com/tiaanv/jura)                             | No license   | 2026-03-23  | General protocol reference                        |
+| [sklas/CofFi](https://github.com/sklas/CofFi)                             | No license   | 2026-03-23  | General protocol reference                        |
+| [niklasdathe/jurabridge](https://github.com/niklasdathe/jurabridge)       | No license   | 2026-03-23  | General protocol reference                        |
+| [thomaswitt/CoffeeMaker](https://github.com/thomaswitt/CoffeeMaker)       | No license   | 2026-03-23  | General protocol reference                        |
 
 ## References
 
