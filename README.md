@@ -154,7 +154,7 @@ command: !lambda 'return "FA:0" + std::to_string(id(select).active_index().value
 
 ## Protocol
 
-The Jura Toptronic V1 protocol encodes each ASCII character as 4 UART bytes using bits 2 and 5.
+The Jura Toptronic protocol encodes each ASCII character as 4 UART bytes using bits 2 and 5.
 All commands end with `\r\n`. Commands are uppercase, responses lowercase.
 
 See [`docs/jura-protocol.md`](docs/jura-protocol.md) for full protocol documentation.

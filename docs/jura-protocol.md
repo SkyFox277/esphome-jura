@@ -8,7 +8,7 @@ Last updated: 2026-03-23
 
 | Source                                                                                         | Content                                                 |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| http://protocoljura.wiki-site.com/index.php/Hauptseite                                         | Original protocol documentation (Toptronic V1)          |
+| http://protocoljura.wiki-site.com/index.php/Hauptseite                                         | Original protocol documentation (Toptronic)          |
 | https://github.com/ryanalden/esphome-jura-component                                            | ESPHome custom component (basis of this implementation) |
 | https://github.com/Jutta-Proto/protocol-cpp                                                    | C++ protocol implementation, V2 protocol analysis       |
 | https://github.com/COM8/esp32-jura                                                             | ESP32 implementation (Bluetooth/XMPP, newer models)     |

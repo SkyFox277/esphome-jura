@@ -185,7 +185,7 @@ void JuraCoffee::update() {
 }
 
 void JuraCoffee::dump_config() {
-  ESP_LOGCONFIG(TAG, "Jura Coffee Machine (Toptronic V1):");
+  ESP_LOGCONFIG(TAG, "Jura Coffee Machine (Toptronic):");
   ESP_LOGCONFIG(TAG, "  Update interval: %ums", this->get_update_interval());
   LOG_BINARY_SENSOR("  ", "Tray Missing", tray_missing_);
   LOG_BINARY_SENSOR("  ", "Tank Empty",   tank_empty_);
