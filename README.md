@@ -167,9 +167,29 @@ See [`docs/jura-protocol.md`](docs/jura-protocol.md) for full protocol documenta
 >
 > The software is provided "as is", without warranty of any kind.
 
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+## Attribution
+
+This project was developed independently. The following community projects were used as **protocol documentation references** (no code was copied):
+
+| Project                                                                    | License      | Role                                              |
+| -------------------------------------------------------------------------- | ------------ | ------------------------------------------------- |
+| [ryanalden/esphome-jura-component](https://github.com/ryanalden/esphome-jura-component) | No license   | ESPHome integration reference                     |
+| [Jutta-Proto/protocol-cpp](https://github.com/Jutta-Proto/protocol-cpp)   | GPL-3.0      | Protocol encoding/decoding reference              |
+| [Jutta-Proto/hardware-pi](https://github.com/Jutta-Proto/hardware-pi)     | GPL-3.0      | Hardware interface reference                      |
+| [alextrical/Jura-F7-ESPHOME](https://github.com/alextrical/Jura-F7-ESPHOME) | GPL-3.0   | F7 model FA: command reference                    |
+| [thankthemaker/sharespresso](https://github.com/thankthemaker/sharespresso) | MIT         | ENA/E-series command reference                    |
+| [oliverk71/Coffeemaker-Payment-System](https://github.com/oliverk71/Coffeemaker-Payment-System) | MIT | Payment system integration reference    |
+| [Q42/coffeehack](https://github.com/Q42/coffeehack)                       | No license   | Protocol encoding reference                       |
+| [tiaanv/jura](https://github.com/tiaanv/jura)                             | No license   | General protocol reference                        |
+| [sklas/CofFi](https://github.com/sklas/CofFi)                             | No license   | General protocol reference                        |
+| [niklasdathe/jurabridge](https://github.com/niklasdathe/jurabridge)       | No license   | General protocol reference                        |
+| [thomaswitt/CoffeeMaker](https://github.com/thomaswitt/CoffeeMaker)       | No license   | General protocol reference                        |
+
 ## References
 
 - Protocol documentation: http://protocoljura.wiki-site.com/
-- Original ESPHome component: https://github.com/ryanalden/esphome-jura-component
-- Protocol C++ reference: https://github.com/Jutta-Proto/protocol-cpp
 - HA community thread: https://community.home-assistant.io/t/control-your-jura-coffee-machine/26604
