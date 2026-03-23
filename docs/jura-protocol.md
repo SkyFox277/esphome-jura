@@ -179,32 +179,45 @@ speaks V2 with modern models.
 
 ---
 
-## Command Reference — Impressa F50
+## Command Reference
 
-### Machine Control
+### Machine Control (AN: commands)
 
-| Command  | Response | Description                               | F50 tested |
-| -------- | -------- | ----------------------------------------- | ---------- |
-| `AN:01`  | `ok:`    | Power on                                  | ✅          |
-| `AN:02`  | `ok:`    | Power off                                 | ✅          |
-| `AN:0A`  | ?        | Clear EEPROM — **NEVER USE!**             | ❌ no       |
-| `AN:20`  | `ok:`    | Test mode on                              | —          |
-| `AN:21`  | `ok:`    | Test mode off                             | —          |
+| Command  | Response | Description                               |
+| -------- | -------- | ----------------------------------------- |
+| `AN:01`  | `ok:`    | Power on / wake from standby              |
+| `AN:02`  | `ok:`    | Power off (initiates shutdown sequence)   |
+| `AN:0A`  | ?        | Clear EEPROM — **NEVER USE!**             |
+| `AN:20`  | `ok:`    | Test mode on                              |
+| `AN:21`  | `ok:`    | Test mode off                             |
 
-### Products (FA: commands)
+> **Note on Zero-Energy models:** Newer machines (ENA 7, etc.) use a high-voltage
+> latching power switch. `AN:01` alone may not suffice — a relay wired in parallel
+> to the physical power button may be required.
 
-| Command  | F50 function        | Other models               | F50 tested |
-| -------- | ------------------- | -------------------------- | ---------- |
-| `FA:01`  | —                   | Product 1 / Espresso       | —          |
-| `FA:02`  | Rinse               | Product 2 / Pre-heat       | ✅          |
-| `FA:03`  | —                   | Product 3                  | —          |
-| `FA:04`  | —                   | Button 1 (top left)        | —          |
-| `FA:05`  | —                   | Button 2                   | —          |
-| `FA:06`  | Coffee              | Coffee / Button 3          | ✅          |
-| `FA:07`  | Double coffee       | Double coffee / Button 4   | ✅          |
-| `FA:08`  | —                   | Hot water                  | —          |
-| `FA:09`  | —                   | Steam                      | —          |
-| `FA:0B`  | Rinse (water ml)    | Exit menu (J6)             | —          |
+### Products (FA: commands) — by model
+
+`FA:` commands simulate physical button presses and are **model-specific**.
+
+| Command  | F50 ✅       | F7 / S95      | E6 / E8       | J6            | ENA 7         | X7 / Saphira  |
+| -------- | ------------ | ------------- | ------------- | ------------- | ------------- | ------------- |
+| `FA:01`  | —            | —             | —             | Off + rinse   | —             | Product 1     |
+| `FA:02`  | Rinse        | —             | —             | —             | —             | Product 2     |
+| `FA:03`  | —            | —             | —             | Steam         | —             | Product 3     |
+| `FA:04`  | —            | Espresso      | Espresso      | Espresso      | Rinse (prompt)| Product 4     |
+| `FA:05`  | —            | 2x Espresso   | Ristretto     | Ristretto     | —             | Product 5     |
+| `FA:06`  | Coffee ✅    | Coffee        | Hot water     | Hot water     | —             | Product 6     |
+| `FA:07`  | Dbl coffee ✅| 2x Coffee     | Cappuccino    | Espresso      | —             | Product 7     |
+| `FA:08`  | —            | Hot water     | —             | 2x Espresso   | Steam         | Hot water     |
+| `FA:09`  | —            | Steam         | Coffee        | Coffee        | Coffee (small)| Steam         |
+| `FA:0A`  | —            | —             | —             | 2x Coffee     | Coffee (large)| —             |
+| `FA:0B`  | —            | Rinse         | —             | Cup light     | Hot water     | Rinse         |
+| `FA:0C`  | —            | XXL cup       | —             | Enter menu    | —             | —             |
+
+> Sources: F50 confirmed on hardware. Others from community projects:
+> ryanalden/esphome-jura-component (J6), alextrical/Jura-F7-ESPHOME (F7),
+> tiaanv/jura (ENA), oliverk71/Coffeemaker-Payment-System (X7/S95).
+> Verify commands for your specific model with the `TY:` response.
 
 ### Display
 
@@ -215,9 +228,18 @@ speaks V2 with modern models.
 
 ### Machine Info
 
-| Command | Response example    | Description                |
-| ------- | ------------------- | -------------------------- |
-| `TY:`   | `ty:EF532M V02.03`  | Machine type and firmware  |
+| Command | Response example          | Description                          |
+| ------- | ------------------------- | ------------------------------------ |
+| `TY:`   | `ty:EF532M V02.03`        | Machine type and firmware version    |
+| `TL:`   | `tl:BL_RL78 V01.31`       | Bootloader version (E6/E8)           |
+
+Known `TY:` responses:
+
+| Model              | `TY:` response           |
+| ------------------ | ------------------------ |
+| Impressa F50       | `ty:EF532M V02.03`       |
+| E6 2019 / E8 / E65 | `ty:EF532M V02.03`       |
+| Impressa J6        | `ty: PIM V01.01`         |
 
 ### Low-Level Control (FN: commands)
 
@@ -289,31 +311,40 @@ FN:0D          # brew group reset + eject grounds
 Command: `IC:`
 Response: `ic:XXYYZZ00` (hex string, multiple bytes)
 
-#### Byte 0 — Known bit mapping (F50)
+#### Byte 0 — Bit mapping by model
 
-| Bit | Value 1 means          | Value 0 means        | F50 status                                    |
-| --- | ---------------------- | -------------------- | --------------------------------------------- |
-| 0   | Cleaning required      | OK                   | ✅ confirmed                                   |
-| 1   | ?                      | ?                    | unknown                                       |
-| 2   | ?                      | ?                    | unknown                                       |
-| 3   | ?                      | ?                    | unknown                                       |
-| 4   | Tray inserted          | Tray missing         | ✅ confirmed (inverted vs. common reference!) |
-| 5   | Tank empty             | Tank OK              | ⚠️ unconfirmed for F50                         |
-| 6   | ?                      | ?                    | unknown                                       |
-| 7   | ?                      | ?                    | unknown                                       |
+IC: bit positions differ between model families. Two distinct layouts have been identified:
 
-> **Important:** Bit 4 (tray) is INVERTED on the F50 compared to commonly cited reference code
-> (Instructables article, which was for a different machine).
-> Bit 4 = 1 → tray PRESENT (not missing).
-> Implementation: `tray_missing = !((val >> 4) & 1)` — set `ic_tray_inverted: true` in YAML.
+**Layout A — F50 (confirmed on hardware)**
 
-Example response during operation: `ic:DFB01E00`
-- Byte 0 = `0xDF` = `11011111`
-- Bit 4 = 1 → tray present ✓
-- Bit 5 = 0 → tank OK ✓
-- Bit 0 = 1 → cleaning required?
+| Bit | Value 1 means          | Value 0 means   | Notes                              |
+| --- | ---------------------- | --------------- | ---------------------------------- |
+| 0   | Cleaning required      | OK              | ✅ confirmed                        |
+| 4   | Tray **inserted**      | Tray missing    | ✅ confirmed — inverted logic!      |
+| 5   | Tank empty             | Tank OK         | ⚠️ unconfirmed for F50              |
 
-> **TODO:** Determine bits 1–3 and 6–7 by systematic observation during heat-up.
+> **F50 quirk:** Bit 4 = 1 means tray PRESENT (not missing) — opposite of most models.
+> Set `ic_tray_inverted: true` in YAML. Implementation: `tray_missing = !((val >> 4) & 1)`.
+
+Example F50 responses:
+- `ic:DFB01E00` → Byte 0 = `0xDF` = `11011111` → bit4=1 (tray present), bit5=0 (tank OK)
+- `ic:CFB01E00` → Byte 0 = `0xCF` = `11001111` → bit4=0 (tray missing)
+
+**Layout B — E6, E8, ENA, J6 (confirmed from multiple community projects)**
+
+| Bit | Value 1 means          | Value 0 means   | Notes                              |
+| --- | ---------------------- | --------------- | ---------------------------------- |
+| 0   | Tray missing           | Tray OK         | ✅ confirmed                        |
+| 1   | Tank empty             | Tank OK         | ✅ confirmed                        |
+| 2   | Cleaning required      | OK              | ⚠️ unconfirmed                      |
+
+Example E6/ENA responses:
+- `ic:00` → everything OK
+- `ic:01` → tray missing (bit 0 set)
+- `ic:02` → tank empty (bit 1 set)
+- `ic:03` → both tray missing and tank empty
+
+> **TODO:** Determine bits 3–7 for both layouts by systematic observation.
 > Goal: identify the "ready" bit for Startup Sequence Phase B.
 
 ### RT:0000 — Read EEPROM Counters
@@ -414,14 +445,31 @@ uart:
 
 ## Model Differences
 
-| Model        | Espresso   | FA:06       | FA:07        | FA:02      | Brew pos. |
-| ------------ | ---------- | ----------- | ------------ | ---------- | --------- |
-| F50          | ❌ none    | Coffee      | Double coffee | Rinse     | FN:13     |
-| J6 / E6      | FA:07      | Coffee      | Espresso     | Pre-heat   | FN:22     |
-| X7 / Saphira | FA:01      | Coffee      | —            | FA:02      | FN:13     |
+| Model           | IC: layout | Espresso    | Coffee      | Rinse       | Brew pos. | Connector |
+| --------------- | ---------- | ----------- | ----------- | ----------- | --------- | --------- |
+| Impressa F50    | Layout A   | ❌ none     | FA:06 ✅    | FA:02 ✅    | FN:13     | 7-pin     |
+| Impressa F7/F8  | Layout B   | FA:04       | FA:06       | FA:0B       | FN:13     | 7-pin     |
+| Impressa S95/S90| Layout B   | FA:04       | FA:06       | FA:0B       | FN:13     | 4-pin     |
+| Impressa J6     | Layout B   | FA:07       | FA:09       | FA:0C       | FN:22     | 7-pin     |
+| E6 / E8 / E65   | Layout B   | FA:04       | FA:09       | —           | FN:22     | 7-pin     |
+| ENA 5/7/Micro90 | Layout B   | —           | FA:09/0A    | FA:04       | FN:22     | 7-pin     |
+| X7 / Saphira    | unknown    | FA:01       | FA:06       | FA:0B       | FN:13     | 9-pin     |
 
 > `FA:XX` commands are machine-specific and correspond to physical buttons.
 > `FN:XX` low-level commands are largely model-independent.
+> Sources: confirmed = tested on hardware; others from community reverse-engineering.
+
+### Model-Specific Quirks
+
+| Model          | Quirk                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------- |
+| Impressa F50   | IC: tray bit inverted (bit4=1 → tray present)                                          |
+| ENA Micro 90   | Service port goes to sleep a few minutes after power-off — cannot be used as permanent power source |
+| ENA 7          | High-voltage latching power switch — `AN:01` alone may not work; relay on power button needed |
+| ENA Micro 90   | ⚠️ Thermoblock held at 150°C during milk cleaning with no timeout — fire risk if interrupted |
+| All models     | Brew group mechanical limit: do not exceed ~8–9g coffee dose via `FN:` sequences       |
+| Jura C5        | `FA:09` responds `ok:` but performs no action; `FA:` commands unreliable on this model |
+| Z10 / modern   | Bluetooth/WiFi uses XOR encryption with session key — standard serial protocol blocked |
 
 ---
 

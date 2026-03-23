@@ -56,16 +56,12 @@ jura_coffee:
 
 # ── Buttons ────────────────────────────────────────────────────────────────────
 #
-# F50 button commands (tested):
-#   AN:01  Power On      AN:02  Power Off
-#   FA:06  Coffee        FA:07  Double Coffee
-#   FA:02  Rinse
-#
-# E6 / J6 (community reports, untested):
-#   FA:07  Espresso      FA:06  Coffee        FA:02  Pre-heat
-#
-# X7 / Saphira (community reports, untested):
-#   FA:01  Espresso      FA:06  Coffee        FA:02  Rinse
+# F50 (tested):       FA:06 Coffee  FA:07 Double Coffee  FA:02 Rinse
+# F7 / S95:           FA:04 Espresso  FA:06 Coffee  FA:07 2x Coffee  FA:0B Rinse
+# E6 / E8:            FA:04 Espresso  FA:09 Coffee  FA:06 Hot Water
+# J6:                 FA:07 Espresso  FA:08 2x Espresso  FA:09 Coffee  FA:0A 2x Coffee  FA:0C Menu/Rinse
+# ENA 7:              FA:09 Coffee (small)  FA:0A Coffee (large)  FA:08 Steam  FA:0B Hot Water
+# X7 / Saphira:       FA:01–FA:07 Products  FA:08 Hot Water  FA:09 Steam  FA:0B Rinse
 #
 # ───────────────────────────────────────────────────────────────────────────────
 

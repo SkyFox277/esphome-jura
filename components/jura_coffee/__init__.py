@@ -38,31 +38,65 @@ CONF_NUM_CLEAN           = "num_clean"
 # IC: bit profiles per known machine type.
 # ic_tray_bit / ic_tank_bit / ic_need_clean_bit: bit position in IC: byte 0.
 # ic_tray_inverted: True when bit=1 means tray PRESENT (F50 quirk).
-# Profiles for untested models are based on community reports — verify with logs.
+#
+# Sources: community reverse-engineering + NotebookLM analysis of 15 reference projects.
+# Confirmed = verified with real hardware. Unconfirmed = from code/docs analysis only.
 MACHINE_PROFILES = {
+    # ── Impressa F50 ─────────────────────────────────────────────────────────
+    # Confirmed: bit4=1 means tray PRESENT (inverted). bit5=tank (unconfirmed).
     "f50": {
         CONF_IC_TRAY_BIT:       4,
         CONF_IC_TANK_BIT:       5,
         CONF_IC_NEED_CLEAN_BIT: 0,
-        CONF_IC_TRAY_INVERTED:  True,   # F50: bit=1 means tray present
+        CONF_IC_TRAY_INVERTED:  True,
     },
+    # ── E-series (E6, E8, E65) ───────────────────────────────────────────────
+    # Confirmed from multiple sources: bit0=tray missing, bit1=tank empty.
     "e6": {
-        CONF_IC_TRAY_BIT:       4,
-        CONF_IC_TANK_BIT:       5,
-        CONF_IC_NEED_CLEAN_BIT: 0,
-        CONF_IC_TRAY_INVERTED:  False,  # unconfirmed — verify with IC: logs
+        CONF_IC_TRAY_BIT:       0,
+        CONF_IC_TANK_BIT:       1,
+        CONF_IC_NEED_CLEAN_BIT: 2,   # unconfirmed — verify with IC: logs
+        CONF_IC_TRAY_INVERTED:  False,
     },
+    # ── Impressa J6 ──────────────────────────────────────────────────────────
+    # Assumed same IC: layout as E6. FA: commands differ significantly from F50.
     "j6": {
-        CONF_IC_TRAY_BIT:       4,
-        CONF_IC_TANK_BIT:       5,
-        CONF_IC_NEED_CLEAN_BIT: 0,
-        CONF_IC_TRAY_INVERTED:  False,  # unconfirmed — verify with IC: logs
+        CONF_IC_TRAY_BIT:       0,
+        CONF_IC_TANK_BIT:       1,
+        CONF_IC_NEED_CLEAN_BIT: 2,   # unconfirmed — verify with IC: logs
+        CONF_IC_TRAY_INVERTED:  False,
     },
+    # ── Impressa F7 / F8 / S95 / S90 ─────────────────────────────────────────
+    # Based on F-series code analysis. Likely same as E6 (bit0/bit1).
+    "f7": {
+        CONF_IC_TRAY_BIT:       0,
+        CONF_IC_TANK_BIT:       1,
+        CONF_IC_NEED_CLEAN_BIT: 2,   # unconfirmed
+        CONF_IC_TRAY_INVERTED:  False,
+    },
+    "s95": {
+        CONF_IC_TRAY_BIT:       0,
+        CONF_IC_TANK_BIT:       1,
+        CONF_IC_NEED_CLEAN_BIT: 2,   # unconfirmed
+        CONF_IC_TRAY_INVERTED:  False,
+    },
+    # ── ENA series (ENA 5, ENA 7, ENA Micro 90) ──────────────────────────────
+    # Confirmed: bit0=tray, bit1=tank (same pattern as E6).
+    # Note: ENA Micro 90 service port sleeps a few minutes after power-off.
+    "ena": {
+        CONF_IC_TRAY_BIT:       0,
+        CONF_IC_TANK_BIT:       1,
+        CONF_IC_NEED_CLEAN_BIT: 2,   # unconfirmed
+        CONF_IC_TRAY_INVERTED:  False,
+    },
+    # ── X7 / Franke Saphira ───────────────────────────────────────────────────
+    # Unconfirmed. Professional model with additional hardware (dual grinders,
+    # cappuccino valve). IC: bit layout unknown — verify with diagnostic logs.
     "x7": {
         CONF_IC_TRAY_BIT:       4,
         CONF_IC_TANK_BIT:       5,
         CONF_IC_NEED_CLEAN_BIT: 0,
-        CONF_IC_TRAY_INVERTED:  False,  # unconfirmed — verify with IC: logs
+        CONF_IC_TRAY_INVERTED:  False,
     },
 }
 

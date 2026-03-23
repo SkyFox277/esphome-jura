@@ -135,15 +135,18 @@ command: !lambda 'return "FA:0" + std::to_string(id(select).active_index().value
 
 ## Known Working Models
 
-| Model        | Status           | Notes                                        |
-| ------------ | ---------------- | -------------------------------------------- |
-| Impressa F50 | ✅ tested         | `ic_tray_inverted: true`, no espresso button |
-| E6 2019      | ⚠️ protocol only  | Commands from community reports, untested    |
-| J6           | ⚠️ protocol only  | Commands from community reports, untested    |
-| X7 / Saphira | ⚠️ protocol only  | Commands from community reports, untested    |
-| S95          | ⚠️ protocol only  | 4-pin interface, different connector         |
+| Model            | `machine_type` | Status          | Notes                                               |
+| ---------------- | -------------- | --------------- | --------------------------------------------------- |
+| Impressa F50     | `f50`          | ✅ tested        | IC: tray bit inverted, no espresso                  |
+| Impressa F7 / F8 | `f7`           | ⚠️ community     | FA:04=Espresso, FA:06=Coffee, FA:0B=Rinse           |
+| Impressa S95/S90 | `s95`          | ⚠️ community     | 4-pin connector, same FA: layout as F7              |
+| Impressa J6      | `j6`           | ⚠️ community     | FA:07=Espresso, FA:09=Coffee, FA:0C=Menu/Rinse      |
+| E6 / E8 / E65    | `e6`           | ⚠️ community     | FA:04=Espresso, FA:09=Coffee, IC: bit0/bit1         |
+| ENA 5/7/Micro 90 | `ena`          | ⚠️ community     | FA:09/0A=Coffee, sleep quirk on Micro 90            |
+| X7 / Saphira     | `x7`           | ⚠️ community     | 9-pin connector, FA:01–07=Products, dual grinder    |
 
-> Newer models (ENA, Z-series) use protocol V2 with key exchange — NOT supported.
+> ⚠️ community = commands confirmed from reverse-engineering projects, not tested personally.
+> Newer models (Z10, connected via Bluetooth/WiFi) use encrypted protocol — NOT supported.
 
 ## Protocol
 
