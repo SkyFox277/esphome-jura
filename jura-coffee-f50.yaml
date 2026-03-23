@@ -33,9 +33,8 @@ external_components:
 jura_coffee:
   id: jura
   uart_id: uart_bus
+  machine_type: f50   # sets ic_tray_inverted: true and IC: bit positions automatically
   update_interval: 30s
-  # F50: tray bit=1 means tray is PRESENT (inverted vs. most other models)
-  ic_tray_inverted: true
 
   tray_missing:
     name: "${friendly_name} Tray Missing"
@@ -54,44 +53,56 @@ jura_coffee:
     name: "${friendly_name} Double Coffees"
   num_clean:
     name: "${friendly_name} Cleanings"
+  num_rinse:
+    name: "${friendly_name} Rinses"
+  num_descale:
+    name: "${friendly_name} Descalings"
+
+# ── Buttons ────────────────────────────────────────────────────────────────────
+#
+# F50 (tested):       FA:06 Coffee  FA:07 Double Coffee  FA:02 Rinse
+# F7 / S95:           FA:04 Espresso  FA:06 Coffee  FA:07 2x Coffee  FA:0B Rinse
+# E6 / E8:            FA:04 Espresso  FA:09 Coffee  FA:06 Hot Water
+# J6:                 FA:07 Espresso  FA:08 2x Espresso  FA:09 Coffee  FA:0A 2x Coffee  FA:0C Menu/Rinse
+# ENA 7:              FA:09 Coffee (small)  FA:0A Coffee (large)  FA:08 Steam  FA:0B Hot Water
+# X7 / Saphira:       FA:01–FA:07 Products  FA:08 Hot Water  FA:09 Steam  FA:0B Rinse
+#
+# ───────────────────────────────────────────────────────────────────────────────
 
 button:
   - platform: template
     name: "${friendly_name} Power On"
     icon: mdi:power
     on_press:
-      - jura_coffee.send_command:
-          id: jura
-          command: "AN:01"
+      - jura_coffee.send_command: {id: jura, command: "AN:01"}
 
   - platform: template
     name: "${friendly_name} Power Off"
     icon: mdi:power-off
     on_press:
-      - jura_coffee.send_command:
-          id: jura
-          command: "AN:02"
+      - jura_coffee.send_command: {id: jura, command: "AN:02"}
 
   - platform: template
     name: "${friendly_name} Rinse"
     icon: mdi:water
     on_press:
-      - jura_coffee.send_command:
-          id: jura
-          command: "FA:02"
+      - jura_coffee.send_command: {id: jura, command: "FA:02"}
 
   - platform: template
     name: "${friendly_name} Coffee"
     icon: mdi:coffee
     on_press:
-      - jura_coffee.send_command:
-          id: jura
-          command: "FA:06"
+      - jura_coffee.send_command: {id: jura, command: "FA:06"}
 
   - platform: template
     name: "${friendly_name} Double Coffee"
     icon: mdi:coffee
     on_press:
-      - jura_coffee.send_command:
-          id: jura
-          command: "FA:07"
+      - jura_coffee.send_command: {id: jura, command: "FA:07"}
+
+  # E6 / J6: uncomment and adjust command for your model
+  # - platform: template
+  #   name: "${friendly_name} Espresso"
+  #   icon: mdi:coffee-outline
+  #   on_press:
+  #     - jura_coffee.send_command: {id: jura, command: "FA:07"}  # E6/J6: espresso

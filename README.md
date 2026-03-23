@@ -70,8 +70,8 @@ external_components:
 jura_coffee:
   id: jura
   uart_id: uart_bus
+  machine_type: f50        # auto-configures IC: bit positions for this model
   update_interval: 30s
-  ic_tray_inverted: true   # F50 only: bit=1 means tray PRESENT
 
   tray_missing:
     name: "Tray Missing"
@@ -98,22 +98,27 @@ esphome upload --device jura-coffee-f50.local jura-coffee-f50.yaml
 
 ## Configuration Reference
 
-| Key                  | Type    | Default | Description                                        |
-| -------------------- | ------- | ------- | -------------------------------------------------- |
-| `uart_id`            | id      | —       | UART bus ID                                        |
-| `update_interval`    | time    | `60s`   | How often to poll `IC:` and `RT:0000`              |
-| `ic_tray_bit`        | int 0–7 | `4`     | Bit position in IC: byte 0 for tray sensor         |
-| `ic_tank_bit`        | int 0–7 | `5`     | Bit position in IC: byte 0 for tank sensor         |
-| `ic_need_clean_bit`  | int 0–7 | `0`     | Bit position in IC: byte 0 for cleaning sensor     |
-| `ic_tray_inverted`   | bool    | `false` | `true` if bit=1 means tray PRESENT (e.g. F50)      |
-| `tray_missing`       | sensor  | —       | Binary sensor: tray missing                        |
-| `tank_empty`         | sensor  | —       | Binary sensor: water tank empty                    |
-| `need_clean`         | sensor  | —       | Binary sensor: cleaning required                   |
-| `num_single_espresso`| sensor  | —       | Counter: single espressos                          |
-| `num_double_espresso`| sensor  | —       | Counter: double espressos                          |
-| `num_coffee`         | sensor  | —       | Counter: coffees                                   |
-| `num_double_coffee`  | sensor  | —       | Counter: double coffees                            |
-| `num_clean`          | sensor  | —       | Counter: cleanings                                 |
+| Key                      | Type    | Default | Description                                                              |
+| ------------------------ | ------- | ------- | ------------------------------------------------------------------------ |
+| `uart_id`                | id      | —       | UART bus ID                                                              |
+| `update_interval`        | time    | `60s`   | How often to poll `IC:` and `RT:0000`                                    |
+| `machine_type`           | string  | —       | Known model: `f50`, `e6`, `j6`, `x7` etc. — auto-sets all IC: bits      |
+| `ic_tray_bit`            | int 0–7 | `4`     | IC: byte 0 bit for tray sensor (overrides `machine_type`)               |
+| `ic_tank_bit`            | int 0–7 | `5`     | IC: byte 0 bit for tank sensor (overrides `machine_type`)               |
+| `ic_need_clean_bit`      | int 0–7 | `0`     | IC: byte 0 bit for cleaning sensor (overrides `machine_type`)           |
+| `ic_tray_inverted`       | bool    | `false` | `true` if bit=1 means tray PRESENT (F50 quirk)                          |
+| `ic_tank_inverted`       | bool    | `false` | `true` if bit=1 means tank OK, 0=empty (F50 quirk)                      |
+| `ic_need_clean_inverted` | bool    | `false` | `true` if bit=1 means clean NOT needed, 0=needed (F50 quirk)            |
+| `tray_missing`           | sensor  | —       | Binary sensor: tray missing                                              |
+| `tank_empty`             | sensor  | —       | Binary sensor: water tank empty                                          |
+| `need_clean`             | sensor  | —       | Binary sensor: cleaning required                                         |
+| `num_single_espresso`    | sensor  | —       | Counter: EEPROM addr 0x0000 (on F50: Coffee FA:06)                       |
+| `num_double_espresso`    | sensor  | —       | Counter: EEPROM addr 0x0001 (on F50: Double Coffee FA:07)                |
+| `num_coffee`             | sensor  | —       | Counter: EEPROM addr 0x0002 (on F50: always 0 — no small-size button)   |
+| `num_double_coffee`      | sensor  | —       | Counter: EEPROM addr 0x0003 (on F50: always 0)                          |
+| `num_clean`              | sensor  | —       | Counter: cleanings (EEPROM addr 0x0008)                                  |
+| `num_rinse`              | sensor  | —       | Counter: rinse cycles (EEPROM addr 0x0007)                               |
+| `num_descale`            | sensor  | —       | Counter: descaling cycles (EEPROM addr 0x0009)                           |
 
 ## Sending Commands
 
@@ -134,26 +139,61 @@ command: !lambda 'return "FA:0" + std::to_string(id(select).active_index().value
 
 ## Known Working Models
 
-| Model        | Status           | Notes                                        |
-| ------------ | ---------------- | -------------------------------------------- |
-| Impressa F50 | ✅ tested         | `ic_tray_inverted: true`, no espresso button |
-| E6 2019      | ⚠️ protocol only  | Commands from community reports, untested    |
-| J6           | ⚠️ protocol only  | Commands from community reports, untested    |
-| X7 / Saphira | ⚠️ protocol only  | Commands from community reports, untested    |
-| S95          | ⚠️ protocol only  | 4-pin interface, different connector         |
+| Model            | `machine_type` | Status          | Notes                                               |
+| ---------------- | -------------- | --------------- | --------------------------------------------------- |
+| Impressa F50     | `f50`          | ✅ tested        | IC: tray bit inverted, no espresso                  |
+| Impressa F7 / F8 | `f7`           | ⚠️ community     | FA:04=Espresso, FA:06=Coffee, FA:0B=Rinse           |
+| Impressa S95/S90 | `s95`          | ⚠️ community     | 4-pin connector, same FA: layout as F7              |
+| Impressa J6      | `j6`           | ⚠️ community     | FA:07=Espresso, FA:09=Coffee, FA:0C=Menu/Rinse      |
+| E6 / E8 / E65    | `e6`           | ⚠️ community     | FA:04=Espresso, FA:09=Coffee, IC: bit0/bit1         |
+| ENA 5/7/Micro 90 | `ena`          | ⚠️ community     | FA:09/0A=Coffee, sleep quirk on Micro 90            |
+| X7 / Saphira     | `x7`           | ⚠️ community     | 9-pin connector, FA:01–07=Products, dual grinder    |
 
-> Newer models (ENA, Z-series) use protocol V2 with key exchange — NOT supported.
+> ⚠️ community = commands confirmed from reverse-engineering projects, not tested personally.
+> Newer models (Z10, connected via Bluetooth/WiFi) use encrypted protocol — NOT supported.
 
 ## Protocol
 
-The Jura Toptronic V1 protocol encodes each ASCII character as 4 UART bytes using bits 2 and 5.
+The Jura Toptronic protocol encodes each ASCII character as 4 UART bytes using bits 2 and 5.
 All commands end with `\r\n`. Commands are uppercase, responses lowercase.
 
 See [`docs/jura-protocol.md`](docs/jura-protocol.md) for full protocol documentation.
 
+## Disclaimer
+
+> **Use at your own risk.**
+>
+> This project involves opening or modifying the service interface of a coffee machine and connecting third-party hardware to it. Doing so may **void your warranty**, and incorrect wiring or software could **damage your machine**.
+>
+> The `FN:` low-level commands in the protocol documentation can control individual actuators (pumps, heaters, valves) directly. Sending wrong command combinations may cause the machine to malfunction or be damaged. Never send `AN:0A` (EEPROM clear).
+>
+> This project is **not affiliated with, endorsed by, or supported by JURA Elektroapparate AG** in any way. All product names, trademarks, and protocols belong to their respective owners.
+>
+> The software is provided "as is", without warranty of any kind.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+## Attribution
+
+This project was developed independently. The following community projects were used as **protocol documentation references** (no code was copied):
+
+| Project                                                                    | License      | Role                                              |
+| -------------------------------------------------------------------------- | ------------ | ------------------------------------------------- |
+| [ryanalden/esphome-jura-component](https://github.com/ryanalden/esphome-jura-component) | No license   | ESPHome integration reference                     |
+| [Jutta-Proto/protocol-cpp](https://github.com/Jutta-Proto/protocol-cpp)   | GPL-3.0      | Protocol encoding/decoding reference              |
+| [Jutta-Proto/hardware-pi](https://github.com/Jutta-Proto/hardware-pi)     | GPL-3.0      | Hardware interface reference                      |
+| [alextrical/Jura-F7-ESPHOME](https://github.com/alextrical/Jura-F7-ESPHOME) | GPL-3.0   | F7 model FA: command reference                    |
+| [thankthemaker/sharespresso](https://github.com/thankthemaker/sharespresso) | MIT         | ENA/E-series command reference                    |
+| [oliverk71/Coffeemaker-Payment-System](https://github.com/oliverk71/Coffeemaker-Payment-System) | MIT | Payment system integration reference    |
+| [Q42/coffeehack](https://github.com/Q42/coffeehack)                       | No license   | Protocol encoding reference                       |
+| [tiaanv/jura](https://github.com/tiaanv/jura)                             | No license   | General protocol reference                        |
+| [sklas/CofFi](https://github.com/sklas/CofFi)                             | No license   | General protocol reference                        |
+| [niklasdathe/jurabridge](https://github.com/niklasdathe/jurabridge)       | No license   | General protocol reference                        |
+| [thomaswitt/CoffeeMaker](https://github.com/thomaswitt/CoffeeMaker)       | No license   | General protocol reference                        |
+
 ## References
 
 - Protocol documentation: http://protocoljura.wiki-site.com/
-- Original ESPHome component: https://github.com/ryanalden/esphome-jura-component
-- Protocol C++ reference: https://github.com/Jutta-Proto/protocol-cpp
 - HA community thread: https://community.home-assistant.io/t/control-your-jura-coffee-machine/26604

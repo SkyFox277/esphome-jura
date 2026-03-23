@@ -8,8 +8,9 @@ components/**/__pycache__/
 # Secrets
 secrets.yaml
 
-# Reference PDFs (local only)
+# Reference PDFs and local example repositories (not part of the component)
 pdfs/
+examples/
 
 # Project management (local only)
 .claude/

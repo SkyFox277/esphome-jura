@@ -104,12 +104,17 @@ void JuraCoffee::read_sensors() {
   uint8_t val = static_cast<uint8_t>(strtol(hex_byte.c_str(), nullptr, 16));
 
   bool tray_bit   = (val >> ic_tray_bit_) & 1;
-  bool tray_missing = ic_tray_inverted_ ? !tray_bit : tray_bit;
-  bool tank_empty   = (val >> ic_tank_bit_) & 1;
-  bool need_clean   = (val >> ic_need_clean_bit_) & 1;
+  bool tank_bit   = (val >> ic_tank_bit_) & 1;
+  bool clean_bit  = (val >> ic_need_clean_bit_) & 1;
+  bool tray_missing = ic_tray_inverted_       ? !tray_bit  : tray_bit;
+  bool tank_empty   = ic_tank_inverted_       ? !tank_bit  : tank_bit;
+  bool need_clean   = ic_need_clean_inverted_ ? !clean_bit : clean_bit;
 
-  ESP_LOGD(TAG, "IC: byte=0x%02X tray_bit=%d(inv=%d) tray_missing=%d tank_empty=%d need_clean=%d",
-           val, (val >> ic_tray_bit_) & 1, ic_tray_inverted_, tray_missing, tank_empty, need_clean);
+  ESP_LOGD(TAG, "IC: byte=0x%02X tray=%d(inv=%d)->missing=%d tank=%d(inv=%d)->empty=%d clean=%d(inv=%d)->need=%d",
+           val,
+           tray_bit,  ic_tray_inverted_,        tray_missing,
+           tank_bit,  ic_tank_inverted_,         tank_empty,
+           clean_bit, ic_need_clean_inverted_,   need_clean);
 
   if (tray_missing_ != nullptr)
     tray_missing_->publish_state(tray_missing);
@@ -120,16 +125,19 @@ void JuraCoffee::read_sensors() {
 }
 
 void JuraCoffee::read_status() {
-  // RT:0000 returns EEPROM line with counters encoded as 4-char hex values:
-  //   [3:7]   = single espresso count
-  //   [7:11]  = double espresso count
-  //   [11:15] = coffee count
-  //   [15:19] = double coffee count
-  //   [31:35] = clean count
+  // RT:0000 returns EEPROM line: "rt:" + 64 hex chars (32 bytes / 16 words).
+  // EEPROM word map (confirmed from F50 sample data + speicheradressen.txt):
+  //   offset  3..6  (word 0x0000): Bezüge Normal (coffee / normal size)
+  //   offset  7..10 (word 0x0001): Bezüge doppelte Normal (double coffee)
+  //   offset 11..14 (word 0x0002): Bezüge klein (small / espresso on other models)
+  //   offset 15..18 (word 0x0003): Bezüge 2x klein (double small)
+  //   offset 31..34 (word 0x0007): Spülvorgänge (rinse count)
+  //   offset 35..38 (word 0x0008): Reinigungszyklen (cleaning cycles)
+  //   offset 39..42 (word 0x0009): Entkalkungszyklen (descaling cycles)
   std::string result = this->cmd2jura("RT:0000");
   ESP_LOGD(TAG, "RT:0000 response: '%s'", result.c_str());
 
-  if (result.size() < 35)
+  if (result.size() < 19)
     return;
 
   auto parse = [&](size_t start, size_t len) -> long {
@@ -140,12 +148,16 @@ void JuraCoffee::read_status() {
     num_single_espresso_->publish_state(parse(3, 4));
   if (num_double_espresso_ != nullptr)
     num_double_espresso_->publish_state(parse(7, 4));
-  if (num_coffee_ != nullptr)
+  if (num_coffee_ != nullptr && result.size() >= 15)
     num_coffee_->publish_state(parse(11, 4));
-  if (num_double_coffee_ != nullptr)
+  if (num_double_coffee_ != nullptr && result.size() >= 19)
     num_double_coffee_->publish_state(parse(15, 4));
-  if (num_clean_ != nullptr && result.size() >= 35)
-    num_clean_->publish_state(parse(31, 4));
+  if (num_rinse_ != nullptr && result.size() >= 35)
+    num_rinse_->publish_state(parse(31, 4));
+  if (num_clean_ != nullptr && result.size() >= 39)
+    num_clean_->publish_state(parse(35, 4));
+  if (num_descale_ != nullptr && result.size() >= 43)
+    num_descale_->publish_state(parse(39, 4));
 }
 
 void JuraCoffee::send_command(const std::string &command) {
@@ -173,7 +185,7 @@ void JuraCoffee::update() {
 }
 
 void JuraCoffee::dump_config() {
-  ESP_LOGCONFIG(TAG, "Jura Coffee Machine (Impressa F50):");
+  ESP_LOGCONFIG(TAG, "Jura Coffee Machine (Toptronic):");
   ESP_LOGCONFIG(TAG, "  Update interval: %ums", this->get_update_interval());
   LOG_BINARY_SENSOR("  ", "Tray Missing", tray_missing_);
   LOG_BINARY_SENSOR("  ", "Tank Empty",   tank_empty_);
@@ -183,6 +195,8 @@ void JuraCoffee::dump_config() {
   LOG_SENSOR("  ", "Coffees",          num_coffee_);
   LOG_SENSOR("  ", "Double Coffees",   num_double_coffee_);
   LOG_SENSOR("  ", "Cleanings",        num_clean_);
+  LOG_SENSOR("  ", "Rinses",           num_rinse_);
+  LOG_SENSOR("  ", "Descalings",       num_descale_);
 }
 
 }  // namespace jura_coffee
