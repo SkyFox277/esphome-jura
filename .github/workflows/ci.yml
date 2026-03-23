@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-and-compile:
+    name: Validate & Compile (F50)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-esphome-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-esp8266-${{ hashFiles('jura-coffee-f50.yaml') }}
+          restore-keys: pio-esp8266-
+
+      - name: Install ESPHome
+        run: pip install esphome
+
+      - name: Create dummy secrets
+        run: |
+          cat > secrets.yaml << 'EOF'
+          wifi_ssid: ci-network
+          wifi_password: ci-password
+          fallback_ap_password: ci-fallback
+          api_encryption_key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          EOF
+
+      - name: Validate YAML
+        run: esphome validate jura-coffee-f50.yaml
+
+      - name: Compile firmware
+        run: esphome compile jura-coffee-f50.yaml
