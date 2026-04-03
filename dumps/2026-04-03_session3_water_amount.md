@@ -271,7 +271,13 @@ All zeros — end of EEPROM.
 
 ---
 
-## RR: Full RAM Dump (at 240ml — RR:06/0B/0C/13 fluctuate)
+## RR: Full RAM Dump (0x00–0xFF, non-zero values only)
+
+RR: address space extends to 0xFF (256 registers). Many odd-numbered registers
+are big-endian copies of the previous even register. ~160 non-zero registers found.
+Values from 0x24+ often mirror EEPROM content (e.g. RR:A0=`000F` matches RE:40).
+
+### RR:00–RR:23 (known range, at 240ml)
 
 | Register | Value  | Dec   | Notes                        |
 | -------- | ------ | ----- | ---------------------------- |
@@ -284,7 +290,7 @@ All zeros — end of EEPROM.
 | RR:06    | `0006` | 6     | Motor/actuator cycle         |
 | RR:07    | `0000` | 0     | unknown                      |
 | RR:08    | `041C` | 1052  | fluctuates                   |
-| RR:09    | `1C00` | 7168  | Big-endian copy?             |
+| RR:09    | `1C00` | 7168  | Big-endian copy              |
 | RR:0A    | `0011` | 17    | unknown                      |
 | RR:0B    | `1102` | 4354  | fluctuates                   |
 | RR:0C    | `0100` | 256   | fluctuates                   |
@@ -295,16 +301,184 @@ All zeros — end of EEPROM.
 | RR:11    | `0000` | 0     | unknown                      |
 | RR:12    | varies | —     | sporadic timeout             |
 | RR:13    | `0100` | 256   | fluctuates                   |
-| RR:14    | `0000` | 0     | unknown                      |
-| RR:15    | `0000` | 0     | unknown                      |
-| RR:16    | `0000` | 0     | unknown                      |
-| RR:17    | `0000` | 0     | unknown                      |
+| RR:14–17 | `0000` | 0     | all zero                     |
 | RR:18    | `0037` | 55    | unknown (NOT temperature)    |
 | RR:19    | `3700` | 14080 | Big-endian copy of RR:18     |
 | RR:1A    | `0010` | 16    | unknown                      |
 | RR:1B    | `1000` | 4096  | Big-endian copy of RR:1A     |
 | RR:1C    | `0009` | 9     | unknown                      |
 | RR:1D    | `0900` | 2304  | Big-endian copy of RR:1C     |
+
+### RR:24–RR:FF (extended range, non-zero only)
+
+| Register | Value  | Dec   | Notes                        |
+| -------- | ------ | ----- | ---------------------------- |
+| RR:29    | `0003` | 3     | (responded as re: not rr:)   |
+| RR:2A    | `00FF` | 255   |                              |
+| RR:2B    | `FFFF` | 65535 |                              |
+| RR:2C    | `FF00` | 65280 | Big-endian copy              |
+| RR:31    | `0006` | 6     |                              |
+| RR:32    | `8700` | 34560 |                              |
+| RR:34    | `0002` | 2     |                              |
+| RR:35    | `0202` | 514   |                              |
+| RR:36    | `0203` | 515   |                              |
+| RR:37    | `0200` | 512   |                              |
+| RR:38    | `0008` | 8     |                              |
+| RR:39    | `0801` | 2049  |                              |
+| RR:3A    | `0105` | 261   |                              |
+| RR:3B    | `053E` | 1342  |                              |
+| RR:3C    | `3E66` | 15974 |                              |
+| RR:3D    | `661F` | 26143 |                              |
+| RR:3E    | `1F5D` | 8029  |                              |
+| RR:3F    | `5D6F` | 23919 |                              |
+| RR:40    | `6F7F` | 28543 |                              |
+| RR:41    | `8200` | 33280 |                              |
+| RR:43    | `0001` | 1     |                              |
+| RR:44    | `0121` | 289   |                              |
+| RR:45    | `2100` | 8448  |                              |
+| RR:46    | `003C` | 60    |                              |
+| RR:47    | `3C00` | 15360 | Big-endian copy              |
+| RR:4A    | `004F` | 79    |                              |
+| RR:4B    | `4F00` | 20224 | Big-endian copy              |
+| RR:4C    | `0003` | 3     |                              |
+| RR:4D    | `0302` | 770   |                              |
+| RR:4E    | `0239` | 569   |                              |
+| RR:4F    | `3900` | 14592 | Big-endian copy              |
+| RR:51    | `0004` | 4     |                              |
+| RR:52    | `0404` | 1028  |                              |
+| RR:53    | `0401` | 1025  |                              |
+| RR:54    | `0130` | 304   |                              |
+| RR:55    | `3004` | 12292 |                              |
+| RR:56    | `0001` | 1     |                              |
+| RR:57    | `0100` | 256   |                              |
+| RR:59    | `0003` | 3     |                              |
+| RR:5B    | `0008` | 8     |                              |
+| RR:5C    | `0804` | 2052  |                              |
+| RR:5D    | `0400` | 1024  |                              |
+| RR:5F    | `0002` | 2     |                              |
+| RR:60    | `028A` | 650   |                              |
+| RR:61    | `8A00` | 35328 | Big-endian copy              |
+| RR:62    | `00EC` | 236   |                              |
+| RR:63    | `EC00` | 60416 | Big-endian copy              |
+| RR:64    | `0029` | 41    |                              |
+| RR:65    | `0908` | 2312  |                              |
+| RR:6B    | `00A1` | 161   |                              |
+| RR:6C    | `A100` | 41216 | Big-endian copy              |
+| RR:6F    | `0023` | 35    |                              |
+| RR:70    | `2300` | 8960  | Big-endian copy              |
+| RR:72    | `0001` | 1     |                              |
+| RR:73    | `0130` | 304   |                              |
+| RR:74    | `3036` | 12342 |                              |
+| RR:75    | `3600` | 13824 |                              |
+| RR:76    | `0051` | 81    |                              |
+| RR:77    | `5100` | 20736 | Big-endian copy              |
+| RR:7F    | `00FF` | 255   |                              |
+| RR:80    | `009D` | 157   |                              |
+| RR:81    | `9D00` | 40192 | Big-endian copy              |
+| RR:82    | `006E` | 110   |                              |
+| RR:83    | `6E00` | 28160 | Big-endian copy              |
+| RR:84    | `00B4` | 180   |                              |
+| RR:85    | `B400` | 46080 | Big-endian copy              |
+| RR:89    | `00FD` | 253   |                              |
+| RR:8A    | `FD07` | 64775 |                              |
+| RR:8B    | `0700` | 1792  |                              |
+| RR:8F    | `0006` | 6     |                              |
+| RR:90    | `06B5` | 1717  |                              |
+| RR:91    | `B405` | 46085 |                              |
+| RR:92    | `0601` | 1537  |                              |
+| RR:93    | `03F2` | 1010  |                              |
+| RR:94    | `F230` | 62000 |                              |
+| RR:95    | `309E` | 12446 |                              |
+| RR:96    | `DEB0` | 57008 |                              |
+| RR:97    | `B01E` | 45086 |                              |
+| RR:98    | `1E00` | 7680  |                              |
+| RR:9B    | `0021` | 33    |                              |
+| RR:9D    | `C000` | 49152 |                              |
+| RR:A0    | `000F` | 15    | matches RE:40                |
+| RR:A1    | `0F00` | 3840  | Big-endian copy              |
+| RR:A2    | `00E6` | 230   | matches RE:41                |
+| RR:A3    | `E601` | 58881 |                              |
+| RR:A4    | `010A` | 266   | matches RE:42                |
+| RR:A5    | `0A02` | 2562  |                              |
+| RR:A6    | `0226` | 550   | matches RE:43                |
+| RR:A7    | `2602` | 9730  |                              |
+| RR:A8    | `0222` | 546   | matches RE:44                |
+| RR:A9    | `221B` | 8731  |                              |
+| RR:AA    | `1B58` | 7000  | matches RE:48                |
+| RR:AB    | `5809` | 22537 |                              |
+| RR:AC    | `09C4` | 2500  | matches RE:47                |
+| RR:AD    | `C40A` | 50186 |                              |
+| RR:AE    | `0AF0` | 2800  | matches RE:46                |
+| RR:AF    | `F006` | 61446 |                              |
+| RR:B0    | `060E` | 1550  | matches RE:45                |
+| RR:B1    | `0E32` | 3634  |                              |
+| RR:B2    | `320A` | 12810 | matches RE:4B                |
+| RR:B3    | `0A04` | 2564  |                              |
+| RR:B4    | `04B0` | 1200  | matches RE:4A                |
+| RR:B5    | `B000` | 45056 |                              |
+| RR:B8    | `0091` | 145   |                              |
+| RR:B9    | `9100` | 37120 | Big-endian copy              |
+| RR:BD    | `001F` | 31    |                              |
+| RR:BE    | `1F40` | 8000  |                              |
+| RR:BF    | `400C` | 16396 |                              |
+| RR:C0    | `0C0E` | 3086  | matches RE:2A                |
+| RR:C1    | `0E0C` | 3596  |                              |
+| RR:C2    | `0C14` | 3092  | matches RE:2B                |
+| RR:C3    | `1414` | 5140  |                              |
+| RR:C4    | `1404` | 5124  | matches RE:26                |
+| RR:C5    | `0400` | 1024  |                              |
+| RR:C6    | `00C8` | 200   | matches RE:27                |
+| RR:C7    | `C800` | 51200 | Big-endian copy              |
+| RR:C8    | `0050` | 80    |                              |
+| RR:C9    | `5004` | 20484 | matches RE:25                |
+| RR:CA    | `04B0` | 1200  |                              |
+| RR:CB    | `B002` | 45058 |                              |
+| RR:CC    | `02BC` | 700   | matches RE:78                |
+| RR:CD    | `BC02` | 48130 |                              |
+| RR:CE    | `0226` | 550   | matches RE:79                |
+| RR:CF    | `263C` | 9788  |                              |
+| RR:D0    | `3C14` | 15380 |                              |
+| RR:D1    | `1410` | 5136  |                              |
+| RR:D2    | `1002` | 4098  |                              |
+| RR:D3    | `0208` | 520   |                              |
+| RR:D4    | `0824` | 2084  | matches RE:3A                |
+| RR:D5    | `2428` | 9256  |                              |
+| RR:D6    | `2850` | 10320 | matches RE:3B                |
+| RR:D7    | `5012` | 20498 |                              |
+| RR:D8    | `1225` | 4645  | matches RE:50                |
+| RR:D9    | `2517` | 9495  |                              |
+| RR:DA    | `1712` | 5906  | matches RE:51                |
+| RR:DB    | `120A` | 4618  |                              |
+| RR:DC    | `0A05` | 2565  | matches RE:54                |
+| RR:DD    | `0502` | 1282  |                              |
+| RR:DE    | `0228` | 552   |                              |
+| RR:DF    | `2806` | 10246 |                              |
+| RR:E0    | `0606` | 1542  | matches RE:72                |
+| RR:E1    | `0600` | 1536  |                              |
+| RR:E4    | `0004` | 4     |                              |
+| RR:E5    | `0406` | 1030  |                              |
+| RR:E6    | `060E` | 1550  | matches RE:4D                |
+| RR:E7    | `0E03` | 3587  |                              |
+| RR:E8    | `03B6` | 950   | matches RE:4C                |
+| RR:E9    | `B617` | 46615 |                              |
+| RR:EA    | `17D4` | 6100  | matches RE:71                |
+| RR:EB    | `D401` | 54273 |                              |
+| RR:EC    | `0190` | 400   | matches RE:70                |
+| RR:ED    | `9000` | 36864 | Big-endian copy              |
+| RR:EF    | `0008` | 8     |                              |
+| RR:F0    | `080A` | 2058  |                              |
+| RR:F1    | `0A0A` | 2570  |                              |
+| RR:F2    | `0A00` | 2560  |                              |
+| RR:F5    | `0003` | 3     |                              |
+| RR:F6    | `0320` | 800   | matches RE:37/RE:8A          |
+| RR:F7    | `2000` | 8192  |                              |
+| RR:F8    | `0003` | 3     |                              |
+| RR:F9    | `0300` | 768   |                              |
+| RR:FB    | `0016` | 22    |                              |
+| RR:FC    | `1678` | 5752  | matches RE:0A                |
+| RR:FD    | `7850` | 30800 |                              |
+| RR:FE    | `5004` | 20484 |                              |
+| RR:FF    | `0400` | 1024  |                              |
 | RR:1E    | `001E` | 30    | unknown                      |
 | RR:1F    | varies | —     | fluctuates                   |
 | RR:20    | varies | —     | fluctuates                   |

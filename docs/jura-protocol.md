@@ -361,11 +361,29 @@ Example E6/ENA responses:
 
 ### RT:0000 — Read EEPROM Counters
 
-Command: `RT:0000`
+Command: `RT:XXYY`
 Response: `rt:` + 64 hex chars = 32 bytes = 16 × 16-bit words (total 67 chars)
 
-`RT:XXYY` reads the 16-word line starting at EEPROM word address `0xXXYY`.
+`RT:XXYY` reads the 16-word EEPROM page starting at word address `0xXXYY`.
 Each 4-char hex group in the response is one 16-bit word (big-endian).
+
+The F50 has **10 pages** (160 words, 320 bytes) of readable EEPROM:
+
+| Command     | EEPROM range | Content                                    |
+| ----------- | ------------ | ------------------------------------------ |
+| `RT:0000`   | 0x00–0x0F    | Counters (coffee, rinse, clean, descale)   |
+| `RT:1000`   | 0x10–0x1F    | Extended counters / unknown                |
+| `RT:2000`   | 0x20–0x2F    | Configuration parameters                   |
+| `RT:3000`   | 0x30–0x3F    | Configuration parameters                   |
+| `RT:4000`   | 0x40–0x4F    | Timing parameters                          |
+| `RT:5000`   | 0x50–0x5F    | Timing parameters                          |
+| `RT:6000`   | 0x60–0x6F    | Mostly zero, some values at 0x6B–0x6E      |
+| `RT:7000`   | 0x70–0x7F    | Calibration / configuration                |
+| `RT:8000`   | 0x80–0x8F    | Configuration                              |
+| `RT:9000`   | 0x90–0x9F    | Configuration, zero from 0x9B              |
+| `RT:A000+`  |              | All zeros (end of EEPROM)                  |
+
+Individual words can also be read via `RE:XX` (see below).
 
 #### EEPROM word map — confirmed from F50 sample data + community analysis
 
@@ -436,8 +454,13 @@ rt:0FF307B210630BB1000000140077392E002D000D167800000000021B00020040
 
 ### RR: — Read RAM (Debug)
 
-Command: `RR:XX` (XX = hex address, e.g. `RR:00` to `RR:23`)
+Command: `RR:XX` (XX = hex address, 0x00–0xFF)
 Response: `rr:YYYY` (16-bit hex value)
+
+The F50 has **256 readable RAM registers** (0x00–0xFF). Registers 0x00–0x23 contain
+live machine state. Registers 0x24+ appear to mirror EEPROM content and configuration
+parameters. Many odd-numbered registers are big-endian byte-swapped copies of the
+preceding even register.
 
 #### RR:03 — Operating Temperature / Ready Status (✅ confirmed)
 

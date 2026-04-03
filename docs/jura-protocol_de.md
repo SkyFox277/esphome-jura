@@ -361,11 +361,29 @@ ic:03  → Schale fehlt und Tank leer
 
 ### RT:0000 — EEPROM-Zähler lesen
 
-Befehl: `RT:0000`
+Befehl: `RT:XXYY`
 Antwort: `rt:` + 64 Hex-Zeichen = 32 Bytes = 16 × 16-Bit-Wörter (gesamt 67 Zeichen)
 
-`RT:XXYY` liest die 16-Wort-Zeile ab EEPROM-Adresse `0xXXYY`.
+`RT:XXYY` liest die 16-Wort-EEPROM-Page ab Wort-Adresse `0xXXYY`.
 Jede 4-Zeichen-Hex-Gruppe in der Antwort ist ein 16-Bit-Wort (Big-Endian).
+
+Der F50 hat **10 Pages** (160 Wörter, 320 Bytes) lesbares EEPROM:
+
+| Befehl      | EEPROM-Bereich | Inhalt                                    |
+| ----------- | -------------- | ----------------------------------------- |
+| `RT:0000`   | 0x00–0x0F      | Zähler (Kaffee, Spülung, Reinigung, etc.) |
+| `RT:1000`   | 0x10–0x1F      | Erweiterte Zähler / unbekannt             |
+| `RT:2000`   | 0x20–0x2F      | Konfigurationsparameter                   |
+| `RT:3000`   | 0x30–0x3F      | Konfigurationsparameter                   |
+| `RT:4000`   | 0x40–0x4F      | Timing-Parameter                          |
+| `RT:5000`   | 0x50–0x5F      | Timing-Parameter                          |
+| `RT:6000`   | 0x60–0x6F      | Meist Null, einige Werte bei 0x6B–0x6E    |
+| `RT:7000`   | 0x70–0x7F      | Kalibrierung / Konfiguration              |
+| `RT:8000`   | 0x80–0x8F      | Konfiguration                             |
+| `RT:9000`   | 0x90–0x9F      | Konfiguration, ab 0x9B Null               |
+| `RT:A000+`  |                | Nur Nullen (Ende des EEPROM)              |
+
+Einzelne Wörter können auch über `RE:XX` gelesen werden (siehe unten).
 
 #### EEPROM-Wort-Tabelle — bestätigt aus F50-Messungen + Community-Analyse
 
@@ -436,7 +454,12 @@ rt:0FF307B210630BB1000000140077392E002D000D167800000000021B00020040
 
 ### RR: — RAM lesen (Debug)
 
-Befehl: `RR:XX` (XX = Hex-Adresse, z.B. `RR:00` bis `RR:23`)
+Befehl: `RR:XX` (XX = Hex-Adresse, 0x00–0xFF)
+
+Der F50 hat **256 lesbare RAM-Register** (0x00–0xFF). Register 0x00–0x23 enthalten
+den Live-Maschinenstatus. Register ab 0x24 scheinen EEPROM-Inhalte und
+Konfigurationsparameter zu spiegeln. Viele ungerade Register sind Byte-vertauschte
+(Big-Endian) Kopien des vorherigen geraden Registers.
 Antwort: `rr:YYYY` (16-Bit Hex-Wert)
 
 #### RR:03 — Betriebstemperatur / Bereitschaft (✅ bestätigt)
