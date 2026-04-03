@@ -1,6 +1,6 @@
 # Debug Session 3 — Water Amount Investigation
 
-Date: 2026-04-03 16:30–17:45
+Date: 2026-04-03 16:30–19:30
 Machine: Jura Impressa F50
 Goal: Find where water amount setting is stored
 
@@ -10,20 +10,48 @@ Goal: Find where water amount setting is stored
 
 **Water amount setting is NOT accessible via the Jura serial interface.**
 
-Tested all known address spaces (RT:, RE:, RR:) at multiple water amount settings.
-No register or EEPROM word changed. The setting is stored internally in the
-Jura controller and is not exposed via Toptronic V1 protocol.
+Exhaustively tested all known address spaces (RT:, RE:, RR:) at 4 different
+water amount settings. No EEPROM word changed. RR: registers showed differences
+but all were flüchtige RAM-Werte that change over time, not correlated to the setting.
+
+The setting is stored internally in the Jura controller and is not exposed
+via Toptronic V1 protocol. **Not remotely readable or controllable.**
 
 ---
 
 ## Test Matrix
 
-| Setting | RT:0000–9000 | RE:00–FF | RR:00–FF | Change found |
-| ------- | ------------ | -------- | -------- | ------------ |
-| 30ml    | ✅ scanned    | ✅ scanned | ✅ scanned | none         |
-| 55ml    | ✅ scanned    | ✅ scanned | ✅ partial  | none         |
-| 120ml   | —            | —        | ✅ partial  | none (stable)|
-| 240ml   | ✅ scanned    | ✅ scanned | ✅ scanned | none         |
+| Setting | RT:0000–9000 (10 pages) | RE:00–9F (160 words) | RR:00–23 (live) | RR:24–FF (extended) | Change found       |
+| ------- | ----------------------- | -------------------- | --------------- | ------------------- | ------------------ |
+| 30ml    | ✅ scanned               | ✅ scanned            | ✅ scanned       | ✅ candidates        | none (stable)      |
+| 55ml    | ✅ scanned               | ✅ scanned            | ✅ scanned       | ✅ full scan         | none (stable)      |
+| 120ml   | —                       | —                    | ✅ candidates    | ✅ candidates        | none (stable)      |
+| 240ml   | ✅ scanned               | ✅ scanned            | ✅ scanned       | ✅ full scan         | none (stable)      |
+
+### Investigation phases
+
+1. **EEPROM (RT:0000)** — no diff between 30/55/90/240ml
+2. **EEPROM (RE:00–1F)** — full scan, no diff between 30ml and 240ml
+3. **Discovery: RT:1000–9000** — 10 pages total (160 words), all identical at 55ml vs 240ml
+4. **Discovery: RE:20–FF** — extended range exists, all identical at 55ml vs 240ml
+5. **RR:00–23** — partial diff at 30/120/240ml, only fluctuating values (RR:01, RR:02, RR:08)
+6. **RR:24–FF full diff** — 240ml vs 55ml showed ~40 changed registers
+7. **Candidate verification** — 5 candidates with apparent correlation (RR:64, RR:76, RR:80, RR:82, RR:B8)
+8. **RR:B8 appeared monotonic** — 30ml=50, 55ml=91, 120ml=107, 240ml=145
+9. **RR:B8 disproven** — re-reading at 55ml gave 54, not 91. Value is time-dependent, not setting-dependent
+
+### RR: Candidate Analysis (disproven)
+
+| Register | 30ml | 55ml (1st) | 120ml | 240ml | 55ml (verify) | Conclusion      |
+| -------- | ---- | ---------- | ----- | ----- | ------------- | --------------- |
+| RR:B8    | 50   | 91         | 107   | 145   | **54**        | time-dependent  |
+| RR:64    | 143  | 69         | 192   | 41    | —             | chaotic         |
+| RR:76    | 82   | 152        | 152   | 81    | —             | chaotic         |
+| RR:80    | 289  | 235        | 235   | 157   | —             | chaotic         |
+| RR:82    | 175  | 154        | 19    | 110   | —             | chaotic         |
+
+All RR: differences between settings were caused by register volatility (values change
+over time regardless of water amount setting). No reproducible correlation found.
 
 ---
 

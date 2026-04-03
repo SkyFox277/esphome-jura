@@ -58,11 +58,11 @@ Last updated: 2026-04-03
 - [ ] Button "Clear display" → `DR:`
 - [ ] YAML only, no C++ needed
 
-### F8 — Water amount (research)
-- [ ] Change water amount setting on machine physically
-- [ ] Compare EEPROM (RT:0000) before/after → find which word stores the setting
-- [ ] If found in EEPROM: implement as `number` entity (read via RT:, write via WE:)
-- [ ] If not in EEPROM: check RR: registers for live setting
+### F8 — Water amount (research) ❌ NOT POSSIBLE
+- [x] Change water amount setting on machine physically (tested 30/55/120/240ml)
+- [x] Compare EEPROM (RT:0000–9000, RE:00–9F) before/after → **no difference**
+- [x] Check RR:00–FF registers → **only volatile values, not correlated**
+- [x] **Conclusion: water amount is stored internally, not accessible via serial interface**
 
 ### F9 — Coffee strength (research)
 - [ ] Test: send FA:06 twice within 2s → does second press register as "stronger"?
@@ -75,13 +75,12 @@ Last updated: 2026-04-03
 
 ## Debug Sessions (planned)
 
-### S3 — Water amount EEPROM mapping
-- [ ] Start debug dump (IC: + RT:0000, no RR:)
-- [ ] Read EEPROM baseline
-- [ ] Change water amount on machine (physically)
-- [ ] Read EEPROM again → diff
-- [ ] Identify which EEPROM word stores the water amount setting
-- [ ] Test WE: write command to change the setting remotely
+### S3 — Water amount EEPROM mapping ✅ DONE (not found)
+- [x] Scanned RT:0000–9000 (10 pages, 160 EEPROM words) at 55ml and 240ml — identical
+- [x] Scanned RE:00–9F (160 individual words) at 55ml and 240ml — identical
+- [x] Scanned RR:00–FF (256 RAM registers) at 30/55/120/240ml — only volatile changes
+- [x] Discovered RT:1000–9000 pages and RE:20+ / RR:24+ extended ranges
+- [x] **Result: water amount not in any accessible address space**
 
 ### S4 — Coffee strength test
 - [ ] Start debug dump (IC: + RR:03-06 + RT:0000)

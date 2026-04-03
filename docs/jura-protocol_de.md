@@ -430,10 +430,12 @@ Wörter 0x10–0x1F können nur über `RE:XX` gelesen und über `WE:XX,YYYY` ges
 | 0x001E      | `0004`               | unbekannt                                         |
 | 0x001F      | `03DD`               | unbekannt                                         |
 
-> **Wassermenge-Einstellung:** Getestet durch Änderung von 30ml auf 240ml (Maximum)
-> und Scan aller 32 EEPROM-Wörter vorher/nachher — kein Unterschied.
-> Auch nach Power-Cycle keine Änderung. Die Wassermenge wird intern im
-> Jura-Controller gespeichert und ist **nicht über das Service-Interface zugänglich**.
+> **Wassermenge-Einstellung:** Erschöpfend getestet bei 30ml, 55ml, 120ml, 240ml (Maximum).
+> Alle 160 EEPROM-Wörter (RT:0000–9000, RE:00–9F) gescannt — kein Unterschied zwischen Einstellungen.
+> Alle 256 RR:-RAM-Register (0x00–0xFF) gescannt — nur zeitabhängige flüchtige Änderungen,
+> keine reproduzierbare Korrelation zur Wassermenge. Auch nach Power-Cycle keine Änderung.
+> Die Wassermenge wird intern im Jura-Controller gespeichert und ist
+> **nicht über das Service-Interface zugänglich**.
 
 Beispiel F50 Antwort (dekodiert):
 ```

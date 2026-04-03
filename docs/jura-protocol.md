@@ -430,10 +430,12 @@ Words 0x10–0x1F can only be read via `RE:XX` and written via `WE:XX,YYYY`.
 | 0x001E      | `0004`                 | unknown                                        |
 | 0x001F      | `03DD`                 | unknown                                        |
 
-> **Water amount setting:** Tested by changing water amount from 30ml to 240ml (max)
-> and scanning all 32 EEPROM words before/after — no difference found.
-> Also no change after power cycle. The water amount setting is stored internally
-> by the Jura controller and is **not accessible via the serial interface**.
+> **Water amount setting:** Exhaustively tested at 30ml, 55ml, 120ml, 240ml (max).
+> Scanned all 160 EEPROM words (RT:0000–9000, RE:00–9F) — no difference between settings.
+> Scanned all 256 RR: RAM registers (0x00–0xFF) — only time-dependent volatile changes,
+> no reproducible correlation to water amount. Also no change after power cycle.
+> The water amount setting is stored internally by the Jura controller and is
+> **not accessible via the serial interface**.
 
 Example F50 response (decoded):
 ```
