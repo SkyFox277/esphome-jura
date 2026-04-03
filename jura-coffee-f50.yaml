@@ -44,6 +44,7 @@ jura_coffee:
     name: "${friendly_name} Need Cleaning"
   ready:
     name: "${friendly_name} Ready"
+    id: jura_ready
   needs_rinse:
     name: "${friendly_name} Needs Rinse"
 
@@ -66,6 +67,34 @@ jura_coffee:
   last_response:
     name: "${friendly_name} Last Response"
 
+# ── Scripts ────────────────────────────────────────────────────────────────────
+#
+# Start & Rinse: powers on, waits for operating temperature, then rinses.
+# Timeout 180s — if machine doesn't reach temperature, script aborts.
+#
+# ───────────────────────────────────────────────────────────────────────────────
+
+script:
+  - id: startup_and_rinse
+    then:
+      - logger.log: "Startup & Rinse: powering on..."
+      - jura_coffee.send_command: {id: jura, command: "AN:01"}
+      - wait_until:
+          condition:
+            binary_sensor.is_on: jura_ready
+          timeout: 180s
+      - if:
+          condition:
+            binary_sensor.is_on: jura_ready
+          then:
+            - logger.log: "Startup & Rinse: ready, rinsing..."
+            - delay: 2s
+            - jura_coffee.send_command: {id: jura, command: "FA:02"}
+          else:
+            - logger.log:
+                level: WARN
+                format: "Startup & Rinse: timeout — machine not ready after 180s"
+
 # ── Buttons ────────────────────────────────────────────────────────────────────
 #
 # F50 (tested):       FA:06 Coffee  FA:07 Double Coffee  FA:02 Rinse
@@ -83,6 +112,12 @@ button:
     icon: mdi:power
     on_press:
       - jura_coffee.send_command: {id: jura, command: "AN:01"}
+
+  - platform: template
+    name: "${friendly_name} Start & Rinse"
+    icon: mdi:coffee-maker
+    on_press:
+      - script.execute: startup_and_rinse
 
   - platform: template
     name: "${friendly_name} Power Off"
