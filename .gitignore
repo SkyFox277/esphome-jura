@@ -16,7 +16,6 @@ examples/
 .claude/
 CLAUDE.md
 PLAN.md
-TODO.md
 dumps/*.log
 
 # macOS
