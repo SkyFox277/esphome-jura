@@ -204,6 +204,56 @@ Log output format:
 > **Timing:** Each register poll takes ~300ms. A full RR sweep (0x00-0x23, 36 registers)
 > takes ~11s. Add IC: and RT:0000 for ~12s total per cycle.
 
+## REST Debug API
+
+Optional HTTP API on port 8080 for rapid protocol investigation. Enabled at compile time
+via build flag — disabled by default, adds ~1KB RAM overhead.
+
+### Enable
+
+```yaml
+esphome:
+  platformio_options:
+    build_flags:
+      - "-DUSE_DEBUG_HTTP"
+    build_unflags:
+      - "-Werror"
+```
+
+### Endpoints
+
+**Send a single command:**
+
+```bash
+curl "http://jura-coffee-f50.local:8080/jura/cmd?q=RE:10"
+# → {"status":"pending","poll":"/jura/result"}
+
+sleep 2
+curl "http://jura-coffee-f50.local:8080/jura/result"
+# → {"status":"done","cmd":"RE:10","response":"re:8747"}
+```
+
+**Scan an EEPROM range (RE: addresses):**
+
+```bash
+curl "http://jura-coffee-f50.local:8080/jura/scan?from=00&to=1F&step=01"
+# → {"status":"pending","poll":"/jura/result"}
+
+sleep 20  # ~300ms per address, 32 addresses ≈ 10s
+curl "http://jura-coffee-f50.local:8080/jura/result"
+# → {"scan":[{"addr":"RE:00","response":"re:110A"}, ...], "status":"done"}
+```
+
+Parameters: `from` (hex, default 00), `to` (hex, default F0), `step` (hex, default 10).
+Maximum 32 addresses per scan. Capped to prevent watchdog resets.
+
+**How it works:** HTTP handlers return `202 Accepted` immediately. UART commands execute
+in the main `loop()` (one per iteration, ~300ms each). Poll `/jura/result` until
+`status` is `done`. AN:0A protection applies to all endpoints.
+
+> **Note:** The REST API and debug dump cannot run simultaneously (both use UART).
+> If a dump is active, REST commands return `{"error":"debug_dump_active"}`.
+
 ## Safety
 
 The component blocks dangerous commands that have no valid remote use case.

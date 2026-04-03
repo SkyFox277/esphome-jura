@@ -388,6 +388,35 @@ Each 4-char hex group in the response is one 16-bit word (big-endian).
 | 0x000E      | 59        | 4      | Bezüge seit Reinigung (coffees since cleaning) | `num_coffees_since_clean` | ✅ confirmed — increments +1/coffee, resets after cleaning |
 | 0x000F      | 63        | 4      | unknown counter (⚠️ under observation) | —                      | previously assumed descaling — value 78 does not match known descaling history |
 
+#### Extended EEPROM (RE: only — not visible via RT:0000)
+
+The F50 has 32 EEPROM words (0x00–0x1F). `RT:0000` only returns words 0x00–0x0F.
+Words 0x10–0x1F can only be read via `RE:XX` and written via `WE:XX,YYYY`.
+
+| EEPROM addr | RE: value (F50 sample) | Content                                        |
+| ----------- | ---------------------- | ---------------------------------------------- |
+| 0x0010      | `8747`                 | unknown (constant across sessions)             |
+| 0x0011      | `0037`                 | unknown                                        |
+| 0x0012      | `00EC`                 | unknown                                        |
+| 0x0013      | `0320`                 | unknown                                        |
+| 0x0014      | `C05D`                 | unknown                                        |
+| 0x0015      | `4292`                 | unknown                                        |
+| 0x0016      | `0000`                 | unknown (zero)                                 |
+| 0x0017      | `0000`                 | unknown (zero)                                 |
+| 0x0018      | `0000`                 | unknown (intermittent timeout on read)         |
+| 0x0019      | `0000`                 | unknown (zero)                                 |
+| 0x001A      | `1E02`                 | unknown                                        |
+| 0x001B      | `0126`                 | unknown                                        |
+| 0x001C      | `0256`                 | unknown (intermittent timeout on read)         |
+| 0x001D      | `0005`                 | unknown                                        |
+| 0x001E      | `0004`                 | unknown                                        |
+| 0x001F      | `03DD`                 | unknown                                        |
+
+> **Water amount setting:** Tested by changing water amount from 30ml to 240ml (max)
+> and scanning all 32 EEPROM words before/after — no difference found.
+> Also no change after power cycle. The water amount setting is stored internally
+> by the Jura controller and is **not accessible via the serial interface**.
+
 Example F50 response (decoded):
 ```
 rt:0FF307B210630BB1000000140077392E002D000D167800000000021B00020040
@@ -450,9 +479,18 @@ Recorded during: Off → Tray missing → Heating → Rinsing → Ready
 
 ### RE: — Read EEPROM Word
 
-| Command | Response example | Description        |
-| ------- | ---------------- | ------------------ |
-| `RE:31` | `re:XXXX`        | Machine type code  |
+`RE:XX` reads a single 16-bit EEPROM word at address `XX` (hex).
+Unlike `RT:0000` (which returns 16 words as a block), `RE:` can read the full
+EEPROM range including extended addresses 0x10–0x1F.
+
+| Command  | Response example | Description                                          |
+| -------- | ---------------- | ---------------------------------------------------- |
+| `RE:00`  | `re:110A`        | EEPROM word 0x00 (same as first word in RT:0000)     |
+| `RE:10`  | `re:8747`        | Extended EEPROM word 0x10 (NOT visible via RT:0000)  |
+| `RE:31`  | `re:XXXX`        | Machine type code                                    |
+
+> The F50 has 32 readable EEPROM words (0x00–0x1F). Addresses 0x20+ appear to
+> wrap or return the same data. Some addresses (0x18, 0x1C) occasionally timeout.
 
 ### WE: — Write EEPROM Word
 
