@@ -1,6 +1,8 @@
 #include "jura_coffee.h"
 #include "esphome/core/log.h"
 
+#include <cctype>
+
 namespace esphome {
 namespace jura_coffee {
 
@@ -88,6 +90,22 @@ std::string JuraCoffee::cmd2jura(const std::string &command) {
   }
 }
 
+// ── Command safety ───────────────────────────────────────────────────────────
+
+bool JuraCoffee::is_command_blocked(const std::string &command) {
+  // Normalize: trim whitespace + uppercase
+  std::string normalized;
+  normalized.reserve(command.size());
+  for (char c : command) {
+    if (c != ' ' && c != '\t')
+      normalized += static_cast<char>(toupper(static_cast<unsigned char>(c)));
+  }
+  // AN:0A = EEPROM clear — catastrophic, irreversible
+  return normalized == "AN:0A";
+}
+
+// ── Sensor reading ───────────────────────────────────────────────────────────
+
 void JuraCoffee::read_sensors() {
   // IC: returns hex string, first byte encodes machine status bits:
   //   bit 0: need clean
@@ -160,21 +178,130 @@ void JuraCoffee::read_status() {
     num_descale_->publish_state(parse(39, 4));
 }
 
+// ── Command sending ──────────────────────────────────────────────────────────
+
 void JuraCoffee::send_command(const std::string &command) {
+  if (is_command_blocked(command)) {
+    ESP_LOGE(TAG, "BLOCKED dangerous command: '%s' (AN:0A = EEPROM clear)", command.c_str());
+    if (last_response_ != nullptr)
+      last_response_->publish_state("BLOCKED");
+    return;
+  }
+
+  if (debug_active_) {
+    ESP_LOGI(TAG, "[CMD]  t=%lu %s", (unsigned long) millis(), command.c_str());
+  }
   ESP_LOGD(TAG, "send_command: '%s'", command.c_str());
+
   std::string response = this->cmd2jura(command);
+
+  if (debug_active_) {
+    ESP_LOGI(TAG, "[CMD]  t=%lu %s -> %s", (unsigned long) millis(), command.c_str(),
+             response.empty() ? "(no response)" : response.c_str());
+  }
+
   if (!response.empty()) {
     ESP_LOGD(TAG, "response: '%s'", response.c_str());
+    if (last_response_ != nullptr)
+      last_response_->publish_state(response);
   } else {
     ESP_LOGW(TAG, "no response to command '%s'", command.c_str());
+    if (last_response_ != nullptr)
+      last_response_->publish_state("(no response)");
   }
 }
+
+// ── Debug dump ───────────────────────────────────────────────────────────────
+
+void JuraCoffee::start_debug_dump(uint8_t rr_start, uint8_t rr_end, uint32_t interval_ms,
+                                   bool poll_ic, bool poll_rt) {
+  debug_rr_start_ = rr_start;
+  debug_rr_end_ = rr_end;
+  debug_interval_ms_ = interval_ms;
+  debug_poll_ic_ = poll_ic;
+  debug_poll_rt_ = poll_rt;
+  debug_active_ = true;
+  debug_phase_ = PHASE_IC;
+  debug_current_rr_ = rr_start;
+  ESP_LOGI(TAG, "[DUMP] Started: RR:%02X-RR:%02X every %ums (IC:%s RT:%s)",
+           rr_start, rr_end, interval_ms,
+           poll_ic ? "yes" : "no", poll_rt ? "yes" : "no");
+}
+
+void JuraCoffee::stop_debug_dump() {
+  if (debug_active_) {
+    ESP_LOGI(TAG, "[DUMP] Stopped at t=%lu", (unsigned long) millis());
+  }
+  debug_active_ = false;
+  debug_phase_ = PHASE_IDLE;
+}
+
+void JuraCoffee::annotate_debug(const std::string &note) {
+  ESP_LOGI(TAG, "[NOTE] t=%lu %s", (unsigned long) millis(), note.c_str());
+}
+
+void JuraCoffee::loop() {
+  if (!debug_active_)
+    return;
+
+  switch (debug_phase_) {
+    case PHASE_IC:
+      if (debug_poll_ic_) {
+        std::string r = this->cmd2jura("IC:");
+        ESP_LOGI(TAG, "[DUMP] t=%lu IC: %s", (unsigned long) millis(), r.c_str());
+      }
+      if (debug_rr_start_ <= debug_rr_end_) {
+        debug_phase_ = PHASE_RR;
+        debug_current_rr_ = debug_rr_start_;
+      } else {
+        debug_phase_ = PHASE_RT;
+      }
+      break;
+
+    case PHASE_RR: {
+      char cmd[8];
+      snprintf(cmd, sizeof(cmd), "RR:%02X", debug_current_rr_);
+      std::string r = this->cmd2jura(cmd);
+      ESP_LOGI(TAG, "[DUMP] t=%lu %s %s", (unsigned long) millis(), cmd, r.c_str());
+      debug_current_rr_++;
+      if (debug_current_rr_ > debug_rr_end_) {
+        debug_phase_ = PHASE_RT;
+      }
+      break;
+    }
+
+    case PHASE_RT:
+      if (debug_poll_rt_) {
+        std::string r = this->cmd2jura("RT:0000");
+        ESP_LOGI(TAG, "[DUMP] t=%lu RT:0000 %s", (unsigned long) millis(), r.c_str());
+      }
+      debug_phase_ = PHASE_WAIT;
+      debug_wait_start_ = millis();
+      ESP_LOGD(TAG, "[DUMP] Cycle complete, waiting %ums", debug_interval_ms_);
+      break;
+
+    case PHASE_WAIT:
+      if (millis() - debug_wait_start_ >= debug_interval_ms_) {
+        debug_phase_ = PHASE_IC;
+      }
+      break;
+
+    default:
+      break;
+  }
+}
+
+// ── Component lifecycle ──────────────────────────────────────────────────────
 
 void JuraCoffee::setup() {
   ESP_LOGCONFIG(TAG, "Setting up Jura Coffee component...");
 }
 
 void JuraCoffee::update() {
+  // During debug dump, skip normal polling — the dump handles IC: and RT:
+  if (debug_active_)
+    return;
+
   read_sensors();
 
   // Read EEPROM counters only every 5th update (saves time, counters change rarely)
@@ -197,6 +324,7 @@ void JuraCoffee::dump_config() {
   LOG_SENSOR("  ", "Cleanings",        num_clean_);
   LOG_SENSOR("  ", "Rinses",           num_rinse_);
   LOG_SENSOR("  ", "Descalings",       num_descale_);
+  LOG_TEXT_SENSOR("  ", "Last Response", last_response_);
 }
 
 }  // namespace jura_coffee
