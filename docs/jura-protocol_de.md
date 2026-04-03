@@ -184,13 +184,13 @@ spricht V2 mit modernen Modellen.
 
 ### Maschinen-Steuerung (AN: Befehle)
 
-| Befehl   | Antwort | Beschreibung                              |
-| -------- | ------- | ----------------------------------------- |
-| `AN:01`  | `ok:`   | Einschalten / Aufwecken aus Standby       |
-| `AN:02`  | `ok:`   | Ausschalten (startet Abschalt-Sequenz)    |
-| `AN:0A`  | ?       | EEPROM löschen — **NIEMALS VERWENDEN!**   |
-| `AN:20`  | `ok:`   | Test-Modus ein                            |
-| `AN:21`  | `ok:`   | Test-Modus aus                            |
+| Befehl   | Antwort | Beschreibung                                                               |
+| -------- | ------- | -------------------------------------------------------------------------- |
+| `AN:01`  | `ok:`   | Einschalten / Aufwecken aus Standby                                        |
+| `AN:02`  | `ok:`   | Ausschalten (startet Abschalt-Sequenz)                                     |
+| `AN:0A`  | ?       | EEPROM löschen — **Von Komponente BLOCKIERT** (irreversibel, kein Nutzen)  |
+| `AN:20`  | `ok:`   | Test-Modus ein                                                             |
+| `AN:21`  | `ok:`   | Test-Modus aus                                                             |
 
 > **Hinweis zu Zero-Energy-Modellen:** Neuere Maschinen (ENA 7 etc.) verwenden einen
 > Hochspannungs-Einrastschalter. `AN:01` allein reicht möglicherweise nicht —
