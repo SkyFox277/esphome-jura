@@ -183,13 +183,13 @@ speaks V2 with modern models.
 
 ### Machine Control (AN: commands)
 
-| Command  | Response | Description                               |
-| -------- | -------- | ----------------------------------------- |
-| `AN:01`  | `ok:`    | Power on / wake from standby              |
-| `AN:02`  | `ok:`    | Power off (initiates shutdown sequence)   |
-| `AN:0A`  | ?        | Clear EEPROM — **NEVER USE!**             |
-| `AN:20`  | `ok:`    | Test mode on                              |
-| `AN:21`  | `ok:`    | Test mode off                             |
+| Command  | Response | Description                                                                |
+| -------- | -------- | -------------------------------------------------------------------------- |
+| `AN:01`  | `ok:`    | Power on / wake from standby                                               |
+| `AN:02`  | `ok:`    | Power off (initiates shutdown sequence)                                    |
+| `AN:0A`  | ?        | Clear EEPROM — **BLOCKED by component** (irreversible, no remote use case) |
+| `AN:20`  | `ok:`    | Test mode on                                                               |
+| `AN:21`  | `ok:`    | Test mode off                                                              |
 
 > **Note on Zero-Energy models:** Newer machines (ENA 7, etc.) use a high-voltage
 > latching power switch. `AN:01` alone may not suffice — a relay wired in parallel

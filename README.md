@@ -9,6 +9,9 @@ Tested on **Jura Impressa F50** with a D1 Mini (ESP8266).
 - EEPROM counters: coffees, double coffees, espressos, cleanings
 - Control buttons: power on/off, coffee, double coffee, rinse
 - Raw command action: `jura_coffee.send_command` for use in automations
+- Debug dump system for protocol analysis and sensor identification
+- AN:0A EEPROM clear protection (command blocklist)
+- Last command response text sensor
 - Model-agnostic: IC: bit positions configurable for different machine variants
 
 ## Hardware
@@ -125,6 +128,7 @@ esphome upload --device jura-coffee-f50.local jura-coffee-f50.yaml
 | `num_clean`              | sensor  | —       | Counter: cleanings (EEPROM addr 0x0008)                                  |
 | `num_rinse`              | sensor  | —       | Counter: rinse cycles (EEPROM addr 0x0007)                               |
 | `num_descale`            | sensor  | —       | Counter: descaling cycles (EEPROM addr 0x0009)                           |
+| `last_response`          | sensor  | —       | Text sensor: last `send_command` response                                |
 
 ## Sending Commands
 
@@ -142,6 +146,69 @@ Supports templates:
 ```yaml
 command: !lambda 'return "FA:0" + std::to_string(id(select).active_index().value() + 6);'
 ```
+
+## Debug Dump
+
+The debug dump system polls IC:, RR: registers, and RT:0000 cyclically and outputs the
+results to the ESPHome log. This is useful for protocol analysis and identifying which
+registers change when machine state changes (e.g. tray removed, heating, brewing).
+
+Start a dump with `jura_coffee.start_debug`:
+
+```yaml
+on_press:
+  - jura_coffee.start_debug:
+      id: jura
+      rr_start: 0x00      # first RR: register (default: 0x00)
+      rr_end: 0x23         # last RR: register (default: 0x23)
+      interval_ms: 5000    # pause between cycles in ms (default: 5000)
+      poll_ic: true        # include IC: in each cycle (default: true)
+      poll_rt: true        # include RT:0000 in each cycle (default: true)
+```
+
+Stop a running dump:
+
+```yaml
+on_press:
+  - jura_coffee.stop_debug:
+      id: jura
+```
+
+Add a timestamped note to the log (e.g. to mark when you remove the tray):
+
+```yaml
+on_press:
+  - jura_coffee.annotate_debug:
+      id: jura
+      message: "Tray removed"
+```
+
+Log output format:
+
+```
+[DUMP] t=12345 IC: ic:DFB01E00
+[DUMP] t=12645 RR:00 rr:0000
+[DUMP] t=12945 RR:18 rr:003C
+[CMD]  t=15200 FA:06 -> ok:
+[NOTE] t=15200 Machine warming up
+```
+
+> **Note:** The normal `update()` polling cycle is suspended while a debug dump is
+> running. Sensor values in Home Assistant will not update until the dump is stopped.
+
+> **Timing:** Each register poll takes ~300ms. A full RR sweep (0x00-0x23, 36 registers)
+> takes ~11s. Add IC: and RT:0000 for ~12s total per cycle.
+
+## Safety
+
+The component blocks dangerous commands that have no valid remote use case.
+
+| Command | Effect                                               | Status                  |
+| ------- | ---------------------------------------------------- | ----------------------- |
+| `AN:0A` | Clears all EEPROM data (counters, settings) — irreversible | Blocked by component |
+
+Blocked commands are rejected before reaching the UART. The component logs an error
+and sets `last_response` to "BLOCKED".
 
 ## Known Working Models
 
