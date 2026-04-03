@@ -9,6 +9,11 @@ packages:
 
 esphome:
   friendly_name: ${friendly_name}
+  platformio_options:
+    build_flags:
+      - "-DUSE_DEBUG_HTTP"
+    build_unflags:
+      - "-Werror"
 
 esp8266:
   board: d1_mini
@@ -152,10 +157,9 @@ button:
 
 # ── Debug Dump ────────────────────────────────────────────────────────────────
 #
-# Start: polls IC:, RR:00–RR:23, RT:0000 every 5s → output in ESPHome log
+# Start: polls IC:, RR:03–RR:06, RT:0000 every 2s → output in ESPHome log
 # Stop:  ends the dump cycle
 # User commands (Coffee, Rinse, etc.) are logged as [CMD] in the dump timeline.
-# Use esphome_logs MCP tool to read the dump stream.
 #
 # ───────────────────────────────────────────────────────────────────────────────
 
@@ -179,3 +183,26 @@ button:
     on_press:
       - jura_coffee.stop_debug:
           id: jura
+
+# ── Command Input ─────────────────────────────────────────────────────────────
+#
+# Free-form text input for sending any Jura command (e.g. RT:0010, RR:18, TY:).
+# Response appears in the "Last Response" text sensor.
+# AN:0A is blocked by the component (EEPROM clear protection).
+#
+# ───────────────────────────────────────────────────────────────────────────────
+
+text:
+  - platform: template
+    name: "${friendly_name} Send Command"
+    id: jura_command_input
+    icon: mdi:console
+    entity_category: diagnostic
+    mode: text
+    optimistic: true
+    min_length: 2
+    max_length: 20
+    on_value:
+      - jura_coffee.send_command:
+          id: jura
+          command: !lambda 'return x;'

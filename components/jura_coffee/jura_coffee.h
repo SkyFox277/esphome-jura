@@ -112,6 +112,25 @@ class JuraCoffee : public PollingComponent, public uart::UARTDevice {
   uint32_t debug_wait_start_{0};
   bool debug_poll_ic_{true};
   bool debug_poll_rt_{true};
+
+#ifdef USE_DEBUG_HTTP
+  // ── REST debug interface (port 8080) ───────────────────────────────────────
+  void setup_debug_http_(uint16_t port = 8080);
+  void http_loop_tick_();
+
+  enum HttpTask : uint8_t { TASK_NONE, TASK_CMD, TASK_SCAN };
+  HttpTask    http_task_{TASK_NONE};
+  std::string http_cmd_pending_;
+  std::string http_cmd_result_;
+  bool        http_result_ready_{false};
+
+  // Scan state (RE:XXXX range)
+  uint16_t scan_from_{0x00};
+  uint16_t scan_to_{0xF0};
+  uint16_t scan_step_{0x10};
+  uint16_t scan_current_{0x00};
+  std::string scan_results_json_;
+#endif
 };
 
 // ── Actions ──────────────────────────────────────────────────────────────────
@@ -120,7 +139,7 @@ template<typename... Ts>
 class SendCommandAction : public Action<Ts...>, public Parented<JuraCoffee> {
  public:
   TEMPLATABLE_VALUE(std::string, command)
-  void play(Ts... x) override { this->parent_->send_command(this->command_.value(x...)); }
+  void play(const Ts &...x) override { this->parent_->send_command(this->command_.value(x...)); }
 };
 
 template<typename... Ts>
@@ -132,7 +151,7 @@ class StartDebugAction : public Action<Ts...>, public Parented<JuraCoffee> {
   void set_poll_ic(bool v) { poll_ic_ = v; }
   void set_poll_rt(bool v) { poll_rt_ = v; }
 
-  void play(Ts... x) override {
+  void play(const Ts &...x) override {
     this->parent_->start_debug_dump(rr_start_, rr_end_, interval_ms_, poll_ic_, poll_rt_);
   }
 
@@ -147,14 +166,14 @@ class StartDebugAction : public Action<Ts...>, public Parented<JuraCoffee> {
 template<typename... Ts>
 class StopDebugAction : public Action<Ts...>, public Parented<JuraCoffee> {
  public:
-  void play(Ts... x) override { this->parent_->stop_debug_dump(); }
+  void play(const Ts &...x) override { this->parent_->stop_debug_dump(); }
 };
 
 template<typename... Ts>
 class AnnotateDebugAction : public Action<Ts...>, public Parented<JuraCoffee> {
  public:
   TEMPLATABLE_VALUE(std::string, message)
-  void play(Ts... x) override { this->parent_->annotate_debug(this->message_.value(x...)); }
+  void play(const Ts &...x) override { this->parent_->annotate_debug(this->message_.value(x...)); }
 };
 
 }  // namespace jura_coffee
