@@ -107,10 +107,8 @@ bool JuraCoffee::is_command_blocked(const std::string &command) {
 // ── Sensor reading ───────────────────────────────────────────────────────────
 
 void JuraCoffee::read_sensors() {
-  // IC: returns hex string, first byte encodes machine status bits:
-  //   bit 0: need clean
-  //   bit 4: tray missing
-  //   bit 5: tank empty
+  // IC: returns hex string, first byte encodes machine status bits.
+  // Bit positions are model-specific (configured via machine_type or ic_*_bit keys).
   std::string result = this->cmd2jura("IC:");
   ESP_LOGD(TAG, "IC: response: '%s'", result.c_str());
 
@@ -124,15 +122,18 @@ void JuraCoffee::read_sensors() {
   bool tray_bit   = (val >> ic_tray_bit_) & 1;
   bool tank_bit   = (val >> ic_tank_bit_) & 1;
   bool clean_bit  = (val >> ic_need_clean_bit_) & 1;
-  bool tray_missing = ic_tray_inverted_       ? !tray_bit  : tray_bit;
-  bool tank_empty   = ic_tank_inverted_       ? !tank_bit  : tank_bit;
-  bool need_clean   = ic_need_clean_inverted_ ? !clean_bit : clean_bit;
+  bool rinse_bit  = (val >> ic_needs_rinse_bit_) & 1;
+  bool tray_missing = ic_tray_inverted_        ? !tray_bit  : tray_bit;
+  bool tank_empty   = ic_tank_inverted_        ? !tank_bit  : tank_bit;
+  bool need_clean   = ic_need_clean_inverted_  ? !clean_bit : clean_bit;
+  bool needs_rinse  = ic_needs_rinse_inverted_ ? !rinse_bit : rinse_bit;
 
-  ESP_LOGD(TAG, "IC: byte=0x%02X tray=%d(inv=%d)->missing=%d tank=%d(inv=%d)->empty=%d clean=%d(inv=%d)->need=%d",
+  ESP_LOGD(TAG, "IC: byte=0x%02X tray=%d(inv=%d)->missing=%d tank=%d(inv=%d)->empty=%d clean=%d(inv=%d)->need=%d rinse=%d(inv=%d)->needs=%d",
            val,
            tray_bit,  ic_tray_inverted_,        tray_missing,
            tank_bit,  ic_tank_inverted_,         tank_empty,
-           clean_bit, ic_need_clean_inverted_,   need_clean);
+           clean_bit, ic_need_clean_inverted_,   need_clean,
+           rinse_bit, ic_needs_rinse_inverted_,  needs_rinse);
 
   if (tray_missing_ != nullptr)
     tray_missing_->publish_state(tray_missing);
@@ -140,6 +141,26 @@ void JuraCoffee::read_sensors() {
     tank_empty_->publish_state(tank_empty);
   if (need_clean_ != nullptr)
     need_clean_->publish_state(need_clean);
+  if (needs_rinse_ != nullptr)
+    needs_rinse_->publish_state(needs_rinse);
+}
+
+void JuraCoffee::read_ready() {
+  // RR:03 bit 2 = operating temperature reached (confirmed on F50).
+  // 0x0000 = cold/off, 0x0004 = at temperature (PID mode).
+  std::string result = this->cmd2jura("RR:03");
+  ESP_LOGD(TAG, "RR:03 response: '%s'", result.c_str());
+
+  if (result.size() < 7 || result.substr(0, 3) != "rr:")
+    return;
+
+  uint16_t val = static_cast<uint16_t>(strtol(result.substr(3, 4).c_str(), nullptr, 16));
+  bool is_ready = (val & 0x0004) != 0;
+
+  ESP_LOGD(TAG, "RR:03=0x%04X ready=%d", val, is_ready);
+
+  if (ready_ != nullptr)
+    ready_->publish_state(is_ready);
 }
 
 void JuraCoffee::read_status() {
@@ -152,6 +173,7 @@ void JuraCoffee::read_status() {
   //   offset 31..34 (word 0x0007): Spülvorgänge (rinse count)
   //   offset 35..38 (word 0x0008): Reinigungszyklen (cleaning cycles)
   //   offset 39..42 (word 0x0009): Entkalkungszyklen (descaling cycles)
+  //   offset 59..62 (word 0x000E): Bezüge seit Reinigung (coffees since cleaning)
   std::string result = this->cmd2jura("RT:0000");
   ESP_LOGD(TAG, "RT:0000 response: '%s'", result.c_str());
 
@@ -176,6 +198,8 @@ void JuraCoffee::read_status() {
     num_clean_->publish_state(parse(35, 4));
   if (num_descale_ != nullptr && result.size() >= 43)
     num_descale_->publish_state(parse(39, 4));
+  if (num_coffees_since_clean_ != nullptr && result.size() >= 63)
+    num_coffees_since_clean_->publish_state(parse(59, 4));
 }
 
 // ── Command sending ──────────────────────────────────────────────────────────
@@ -303,6 +327,7 @@ void JuraCoffee::update() {
     return;
 
   read_sensors();
+  read_ready();
 
   // Read EEPROM counters only every 5th update (saves time, counters change rarely)
   if (++update_counter_ >= 5) {
@@ -324,6 +349,9 @@ void JuraCoffee::dump_config() {
   LOG_SENSOR("  ", "Cleanings",        num_clean_);
   LOG_SENSOR("  ", "Rinses",           num_rinse_);
   LOG_SENSOR("  ", "Descalings",       num_descale_);
+  LOG_SENSOR("  ", "Coffees Since Cleaning", num_coffees_since_clean_);
+  LOG_BINARY_SENSOR("  ", "Ready",        ready_);
+  LOG_BINARY_SENSOR("  ", "Needs Rinse",  needs_rinse_);
   LOG_TEXT_SENSOR("  ", "Last Response", last_response_);
 }
 

@@ -16,6 +16,8 @@ examples/
 .claude/
 CLAUDE.md
 PLAN.md
+TODO.md
+dumps/
 
 # macOS
 .DS_Store
