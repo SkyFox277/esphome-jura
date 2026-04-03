@@ -122,6 +122,9 @@ MACHINE_PROFILES = {
 MACHINE_TYPES = list(MACHINE_PROFILES.keys())
 
 # Global IC: defaults used when no machine_type and no explicit ic_* keys are set.
+# WARNING: needs_rinse defaults to bit 0, same as need_clean. This is intentional:
+# needs_rinse is only confirmed on F50 (where clean=bit1, rinse=bit0).
+# For other models, set ic_needs_rinse_bit explicitly or don't use needs_rinse.
 IC_DEFAULTS = {
     CONF_IC_TRAY_BIT:            4,
     CONF_IC_TANK_BIT:            5,

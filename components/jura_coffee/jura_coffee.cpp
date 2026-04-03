@@ -84,7 +84,7 @@ std::string JuraCoffee::cmd2jura(const std::string &command) {
       }
     } else {
       delay(10);
-      if (++watchdog > 500)
+      if (++watchdog > 100)  // ~1s timeout (was 500 = 5s, too long for WDT)
         return "";
     }
   }
@@ -327,7 +327,8 @@ void JuraCoffee::update() {
     return;
 
   read_sensors();
-  read_ready();
+  if (ready_ != nullptr)
+    read_ready();
 
   // Read EEPROM counters only every 5th update (saves time, counters change rarely)
   if (++update_counter_ >= 5) {
