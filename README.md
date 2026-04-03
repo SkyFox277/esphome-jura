@@ -5,8 +5,8 @@ Tested on **Jura Impressa F50** with a D1 Mini (ESP8266).
 
 ## Features
 
-- Binary sensors: tray missing, water tank empty, need cleaning
-- EEPROM counters: coffees, double coffees, espressos, cleanings
+- Binary sensors: tray missing, water tank empty, need cleaning, ready (operating temperature), needs rinse
+- EEPROM counters: coffees, double coffees, espressos, cleanings, coffees since cleaning
 - Control buttons: power on/off, coffee, double coffee, rinse
 - Raw command action: `jura_coffee.send_command` for use in automations
 - Debug dump system for protocol analysis and sensor identification
@@ -118,9 +118,13 @@ esphome upload --device jura-coffee-f50.local jura-coffee-f50.yaml
 | `ic_tray_inverted`       | bool    | `false` | `true` if bit=1 means tray PRESENT (F50 quirk)                          |
 | `ic_tank_inverted`       | bool    | `false` | `true` if bit=1 means tank OK, 0=empty (F50 quirk)                      |
 | `ic_need_clean_inverted` | bool    | `false` | `true` if bit=1 means clean NOT needed, 0=needed (F50 quirk)            |
+| `ic_needs_rinse_bit`     | int 0-7 | `0`     | IC: byte 0 bit for needs_rinse sensor                                    |
+| `ic_needs_rinse_inverted`| bool    | `false` | `true` if bit=1 means rinse NOT needed                                   |
 | `tray_missing`           | sensor  | —       | Binary sensor: tray missing                                              |
 | `tank_empty`             | sensor  | —       | Binary sensor: water tank empty                                          |
 | `need_clean`             | sensor  | —       | Binary sensor: cleaning required                                         |
+| `ready`                  | sensor  | —       | Binary sensor: machine at operating temperature (RR:03 bit 2)            |
+| `needs_rinse`            | sensor  | —       | Binary sensor: auto-rinse pending on power off (IC: bit 0)               |
 | `num_single_espresso`    | sensor  | —       | Counter: EEPROM addr 0x0000 (on F50: Coffee FA:06)                       |
 | `num_double_espresso`    | sensor  | —       | Counter: EEPROM addr 0x0001 (on F50: Double Coffee FA:07)                |
 | `num_coffee`             | sensor  | —       | Counter: EEPROM addr 0x0002 (on F50: always 0 — no small-size button)   |
@@ -128,6 +132,7 @@ esphome upload --device jura-coffee-f50.local jura-coffee-f50.yaml
 | `num_clean`              | sensor  | —       | Counter: cleanings (EEPROM addr 0x0008)                                  |
 | `num_rinse`              | sensor  | —       | Counter: rinse cycles (EEPROM addr 0x0007)                               |
 | `num_descale`            | sensor  | —       | Counter: descaling cycles (EEPROM addr 0x0009)                           |
+| `num_coffees_since_clean`| sensor  | —       | Counter: coffees brewed since last cleaning (EEPROM addr 0x000E)         |
 | `last_response`          | sensor  | —       | Text sensor: last `send_command` response                                |
 
 ## Sending Commands
