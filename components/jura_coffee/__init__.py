@@ -288,6 +288,7 @@ JURA_COFFEE_START_DEBUG_SCHEMA = cv.Schema(
 
 @automation.register_action(
     "jura_coffee.start_debug", StartDebugAction, JURA_COFFEE_START_DEBUG_SCHEMA,
+    synchronous=True,
 )
 async def start_debug_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
@@ -309,6 +310,7 @@ JURA_COFFEE_STOP_DEBUG_SCHEMA = cv.Schema(
 
 @automation.register_action(
     "jura_coffee.stop_debug", StopDebugAction, JURA_COFFEE_STOP_DEBUG_SCHEMA,
+    synchronous=True,
 )
 async def stop_debug_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
@@ -326,6 +328,7 @@ JURA_COFFEE_ANNOTATE_DEBUG_SCHEMA = cv.Schema(
 
 @automation.register_action(
     "jura_coffee.annotate_debug", AnnotateDebugAction, JURA_COFFEE_ANNOTATE_DEBUG_SCHEMA,
+    synchronous=True,
 )
 async def annotate_debug_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
