@@ -1,6 +1,6 @@
 # Jura Impressa F50 — Protocol & Interface Reference
 
-Last updated: 2026-03-23
+Last updated: 2026-04-03
 
 ---
 
@@ -183,13 +183,13 @@ speaks V2 with modern models.
 
 ### Machine Control (AN: commands)
 
-| Command  | Response | Description                               |
-| -------- | -------- | ----------------------------------------- |
-| `AN:01`  | `ok:`    | Power on / wake from standby              |
-| `AN:02`  | `ok:`    | Power off (initiates shutdown sequence)   |
-| `AN:0A`  | ?        | Clear EEPROM — **NEVER USE!**             |
-| `AN:20`  | `ok:`    | Test mode on                              |
-| `AN:21`  | `ok:`    | Test mode off                             |
+| Command  | Response | Description                                                                |
+| -------- | -------- | -------------------------------------------------------------------------- |
+| `AN:01`  | `ok:`    | Power on / wake from standby                                               |
+| `AN:02`  | `ok:`    | Power off (initiates shutdown sequence)                                    |
+| `AN:0A`  | ?        | Clear EEPROM — **BLOCKED by component** (irreversible, no remote use case) |
+| `AN:20`  | `ok:`    | Test mode on                                                               |
+| `AN:21`  | `ok:`    | Test mode off                                                              |
 
 > **Note on Zero-Energy models:** Newer machines (ENA 7, etc.) use a high-voltage
 > latching power switch. `AN:01` alone may not suffice — a relay wired in parallel
@@ -315,26 +315,32 @@ Response: `ic:XXYYZZ00` (hex string, multiple bytes)
 
 IC: bit positions differ between model families. Two distinct layouts have been identified:
 
-**Layout A — F50 (confirmed from hardware sample data)**
+**Layout A — F50 (confirmed from hardware debug sessions 2026-04-03)**
 
-All F50 status bits follow inverted logic: **0 = problem, 1 = OK**.
+All F50 status bits use inverted logic UNLESS noted: **0 = problem, 1 = OK**.
 
-| Bit | Value 1 means         | Value 0 means      | Config key              | Notes          |
-| --- | --------------------- | ------------------ | ----------------------- | -------------- |
-| 1   | Cleaning not needed   | Clean required     | `ic_need_clean_inverted`| ✅ confirmed   |
-| 3   | Tank OK               | Tank empty/missing | `ic_tank_inverted`      | ✅ confirmed   |
-| 4   | Tray **inserted**     | Tray missing       | `ic_tray_inverted`      | ✅ confirmed   |
+| Bit | Value 1 means              | Value 0 means      | Config key                 | Logic    | Status           |
+| --- | -------------------------- | ------------------- | -------------------------- | -------- | ---------------- |
+| 0   | Needs rinse on power off   | No rinse pending    | `ic_needs_rinse_bit`       | 1=needs  | ✅ confirmed     |
+| 1   | Cleaning not needed        | Clean required      | `ic_need_clean_inverted`   | inverted | ✅ confirmed     |
+| 2   | Idle (not busy)            | Busy                | —                          | 1=idle   | ⚠️ hypothesis   |
+| 3   | Tank OK                    | Tank empty/missing  | `ic_tank_inverted`         | inverted | ✅ confirmed     |
+| 4   | Tray **inserted**          | Tray missing        | `ic_tray_inverted`         | inverted | ✅ confirmed     |
+| 5   | —                          | —                   | —                          | —        | ✅ always 0      |
+| 6   | —                          | —                   | —                          | —        | ❌ unreliable    |
+| 7   | —                          | —                   | —                          | —        | ✅ always 1      |
 
 Example F50 responses:
 ```
 ic:DFB01E00  0xDF = 1101 1111  → bit1=1, bit3=1, bit4=1 → all OK
 ic:D7B01E00  0xD7 = 1101 0111  → bit3=0 → tank empty
 ic:CFB01E00  0xCF = 1100 1111  → bit4=0 → tray missing
+ic:CEB01E00  0xCE = 1100 1110  → bit4=0 → tray missing (confirmed by physically removing tray: 0xDE→0xCE)
 ic:D9B01E00  0xD9 = 1101 1001  → bit1=0, bit2=0 → cleaning required ("Pflege drücken")
 ```
 
-> Bits 5, 6, 7 always vary between sessions and do not encode sensor state on F50.
-> Bit 5 is always 0 in all known F50 samples.
+> Bit 0 (needs_rinse): 0 after cold start, 1 after first coffee brewed. Triggers auto-rinse when AN:02 (power off) is sent.
+> Bit 5 is always 0 in all known F50 samples. Bit 6 oscillates between reads and is unreliable. Bit 7 is always 1.
 
 **Layout B — E6, E8, ENA, J6 (confirmed from multiple community projects)**
 
@@ -372,15 +378,15 @@ Each 4-char hex group in the response is one 16-bit word (big-endian).
 | 0x0004      | 19        | 4      | Bezüge Espresso?                      | —                       | meaning model-specific, 0 on F50            |
 | 0x0005      | 23        | 4      | Spezialkaffee                         | —                       | —                                           |
 | 0x0006      | 27        | 4      | Pulver (powder / grounds counter)     | —                       | —                                           |
-| 0x0007      | 31        | 4      | Spülvorgänge (rinse count)            | `num_rinse`             | ✅ confirmed — increments on FA:02          |
+| 0x0007      | 31        | 4      | Spülvorgänge (rinse count)            | `num_rinse`             | ✅ confirmed — increments on FA:02 (NOT on auto-rinse at shutdown) |
 | 0x0008      | 35        | 4      | Reinigungszyklen (cleaning cycles)    | `num_clean`             | ✅ confirmed — actual cleaning counter      |
 | 0x0009      | 39        | 4      | Entkalkungszyklen (descaling cycles)  | `num_descale`           | ✅ confirmed                                |
 | 0x000A      | 43        | 4      | unknown                               | —                       | —                                           |
 | 0x000B      | 47        | 4      | unknown (typically 17)                | —                       | —                                           |
 | 0x000C      | 51        | 4      | unknown (typically 1)                 | —                       | —                                           |
-| 0x000D      | 55        | 4      | unknown (typically 174)               | —                       | —                                           |
-| 0x000E      | 59        | 4      | unknown                               | —                       | value varies across sessions                |
-| 0x000F      | 63        | 4      | Bezüge seit letzter Entkalkung        | —                       | resets after descaling                      |
+| 0x000D      | 55        | 4      | unknown (value 566, ⚠️ observe)       | —                       | possibly coffees since descaling (higher count than 0x000F) |
+| 0x000E      | 59        | 4      | Bezüge seit Reinigung (coffees since cleaning) | `num_coffees_since_clean` | ✅ confirmed — increments +1/coffee, resets after cleaning |
+| 0x000F      | 63        | 4      | unknown counter (⚠️ under observation) | —                      | previously assumed descaling — value 78 does not match known descaling history |
 
 Example F50 response (decoded):
 ```
@@ -404,28 +410,43 @@ rt:0FF307B210630BB1000000140077392E002D000D167800000000021B00020040
 Command: `RR:XX` (XX = hex address, e.g. `RR:00` to `RR:23`)
 Response: `rr:YYYY` (16-bit hex value)
 
+#### RR:03 — Operating Temperature / Ready Status (✅ confirmed)
+
+RR:03 bit 2 (0x0004) indicates the machine has reached operating temperature (PID mode).
+This is used as the **ready** binary sensor.
+
+| Value  | Meaning                                    |
+| ------ | ------------------------------------------ |
+| `0000` | Off / cold / not at operating temperature  |
+| `0004` | At operating temperature (PID mode)        |
+| `4000` | Startup transition (brief)                 |
+| `4004` | Motor active + at temperature              |
+| `C004` | Pump/heater active (rinsing, brewing)      |
+
+> `0x0004` returns to `0x0000` after ~10-12 min standby (thermal cooldown).
+
+#### RR:18/19 — **DISPROVEN** as temperature
+
+Previous hypothesis: RR:18 = temperature in degrees C (>=0x3C = 60 degrees C = ready).
+**Disproven:** RR:18 shows 0x34-0x35 in ALL states (cold, heating, ready). Value barely
+changes between states. Not useful as temperature or ready indicator.
+
 #### Observations on F50 during startup sequence
 
 Recorded during: Off → Tray missing → Heating → Rinsing → Ready
 
-| Register | Off    | Tray missing | Heating | Rinsing | Ready  | Interpretation           |
-| -------- | ------ | ------------ | ------- | ------- | ------ | ------------------------ |
-| RR:03    | `0000` | `0000`       | `0004`  | `0004`  | `0004` | Heater active (bit 2)    |
-| RR:04    | `0029` | `0029`       | `0429`  | `0429`  | `0429` | Heater status (?)        |
-| RR:18    | `003B` | `003B`       | —       | —       | `003C` | Temperature? (0x3B=59°C, 0x3C=60°C) |
-| RR:19    | `3B00` | `3B00`       | —       | —       | `3C00` | Big-endian copy of RR:18 |
-| RR:21    | `0024` | `0024`       | varies  | `0013`  | `0034` | Brew group position?     |
-| RR:22    | `242E` | `242E`       | varies  | `105E`  | `316C` | Heat-up progress?        |
-| RR:23    | `2E00` | `2E00`       | varies  | `5E00`  | `6C00` | Big-endian copy?         |
+| Register | Off    | Tray missing | Heating | Rinsing | Ready  | Interpretation                    |
+| -------- | ------ | ------------ | ------- | ------- | ------ | --------------------------------- |
+| RR:03    | `0000` | `0000`       | `0004`  | `0004`  | `0004` | ✅ operating temp reached (bit 2) |
+| RR:04    | `0029` | `0029`       | `0429`  | `0429`  | `0429` | Heater status (?)                 |
+| RR:18    | `003B` | `003B`       | —       | —       | `003C` | ❌ NOT temperature — barely changes |
+| RR:19    | `3B00` | `3B00`       | —       | —       | `3C00` | ❌ big-endian copy of RR:18       |
+| RR:21    | `0024` | `0024`       | varies  | `0013`  | `0034` | ⚠️ unconfirmed — brew group?     |
+| RR:22    | `242E` | `242E`       | varies  | `105E`  | `316C` | ⚠️ unconfirmed                   |
+| RR:23    | `2E00` | `2E00`       | varies  | `5E00`  | `6C00` | ⚠️ unconfirmed — big-endian?     |
 
-**Hypotheses (unconfirmed):**
-- `RR:03` bit 2 = heater currently active
-- `RR:18/19` = current temperature in °C (0x3B = 59°C, 0x3C = 60°C → target ~60°C)
-- Temperature rise in RR:18 can be used for Startup Sequence Phase B
-
-> **TODO for Startup Phase B:** After power on, poll `RR:18` every few seconds.
-> Once value ≥ `003C` (60°C) → machine ready → start rinsing (`FA:02`).
-> Alternative: monitor changes in IC: bits 1–3/6–7.
+> **Ready detection:** Use RR:03 bit 2 (0x0004) to detect operating temperature.
+> RR:18/19 do NOT work for this purpose.
 
 ### RE: — Read EEPROM Word
 
