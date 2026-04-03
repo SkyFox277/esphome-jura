@@ -57,6 +57,8 @@ jura_coffee:
     name: "${friendly_name} Rinses"
   num_descale:
     name: "${friendly_name} Descalings"
+  last_response:
+    name: "${friendly_name} Last Response"
 
 # ── Buttons ────────────────────────────────────────────────────────────────────
 #
@@ -106,3 +108,33 @@ button:
   #   icon: mdi:coffee-outline
   #   on_press:
   #     - jura_coffee.send_command: {id: jura, command: "FA:07"}  # E6/J6: espresso
+
+# ── Debug Dump ────────────────────────────────────────────────────────────────
+#
+# Start: polls IC:, RR:00–RR:23, RT:0000 every 5s → output in ESPHome log
+# Stop:  ends the dump cycle
+# User commands (Coffee, Rinse, etc.) are logged as [CMD] in the dump timeline.
+# Use esphome_logs MCP tool to read the dump stream.
+#
+# ───────────────────────────────────────────────────────────────────────────────
+
+  - platform: template
+    name: "${friendly_name} Debug Start"
+    icon: mdi:bug-play
+    entity_category: diagnostic
+    on_press:
+      - jura_coffee.start_debug:
+          id: jura
+          rr_start: 0x00
+          rr_end: 0x23
+          interval_ms: 5000
+          poll_ic: true
+          poll_rt: true
+
+  - platform: template
+    name: "${friendly_name} Debug Stop"
+    icon: mdi:bug-stop
+    entity_category: diagnostic
+    on_press:
+      - jura_coffee.stop_debug:
+          id: jura

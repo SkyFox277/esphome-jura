@@ -18,7 +18,10 @@ AUTO_LOAD = ["sensor", "text_sensor", "binary_sensor"]
 jura_coffee_ns = cg.esphome_ns.namespace("jura_coffee")
 JuraCoffee = jura_coffee_ns.class_("JuraCoffee", cg.PollingComponent, uart.UARTDevice)
 
-SendCommandAction = jura_coffee_ns.class_("SendCommandAction", automation.Action)
+SendCommandAction   = jura_coffee_ns.class_("SendCommandAction", automation.Action)
+StartDebugAction    = jura_coffee_ns.class_("StartDebugAction", automation.Action)
+StopDebugAction     = jura_coffee_ns.class_("StopDebugAction", automation.Action)
+AnnotateDebugAction = jura_coffee_ns.class_("AnnotateDebugAction", automation.Action)
 
 CONF_MACHINE_TYPE     = "machine_type"
 CONF_IC_TRAY_BIT             = "ic_tray_bit"
@@ -38,6 +41,7 @@ CONF_NUM_DOUBLE_COFFEE   = "num_double_coffee"
 CONF_NUM_CLEAN           = "num_clean"
 CONF_NUM_RINSE           = "num_rinse"
 CONF_NUM_DESCALE         = "num_descale"
+CONF_LAST_RESPONSE       = "last_response"
 
 # IC: bit profiles per known machine type.
 # ic_tray_bit / ic_tank_bit / ic_need_clean_bit: bit position in IC: byte 0.
@@ -197,6 +201,10 @@ CONFIG_SCHEMA = cv.All(
                 accuracy_decimals=0,
                 state_class=STATE_CLASS_TOTAL_INCREASING,
             ),
+            cv.Optional(CONF_LAST_RESPONSE): text_sensor.text_sensor_schema(
+                icon="mdi:console",
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
         }
     )
     .extend(cv.polling_component_schema("60s"))
@@ -239,6 +247,12 @@ async def to_code(config):
             sens = await sensor.new_sensor(config[key])
             cg.add(getattr(var, setter)(sens))
 
+    if CONF_LAST_RESPONSE in config:
+        sens = await text_sensor.new_text_sensor(config[CONF_LAST_RESPONSE])
+        cg.add(var.set_last_response_sensor(sens))
+
+
+# ── Actions ───────────────────────────────────────────────────────────────────
 
 JURA_COFFEE_SEND_COMMAND_SCHEMA = cv.Schema(
     {
@@ -257,4 +271,65 @@ async def send_command_action_to_code(config, action_id, template_arg, args):
     await cg.register_parented(var, config[CONF_ID])
     templ = await cg.templatable(config["command"], args, cg.std_string)
     cg.add(var.set_command(templ))
+    return var
+
+
+JURA_COFFEE_START_DEBUG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.use_id(JuraCoffee),
+        cv.Optional("rr_start", default=0x00): cv.int_range(min=0, max=255),
+        cv.Optional("rr_end", default=0x23):   cv.int_range(min=0, max=255),
+        cv.Optional("interval_ms", default=5000): cv.positive_int,
+        cv.Optional("poll_ic", default=True):  cv.boolean,
+        cv.Optional("poll_rt", default=True):  cv.boolean,
+    }
+)
+
+
+@automation.register_action(
+    "jura_coffee.start_debug", StartDebugAction, JURA_COFFEE_START_DEBUG_SCHEMA,
+)
+async def start_debug_action_to_code(config, action_id, template_arg, args):
+    var = cg.new_Pvariable(action_id, template_arg)
+    await cg.register_parented(var, config[CONF_ID])
+    cg.add(var.set_rr_start(config["rr_start"]))
+    cg.add(var.set_rr_end(config["rr_end"]))
+    cg.add(var.set_interval_ms(config["interval_ms"]))
+    cg.add(var.set_poll_ic(config["poll_ic"]))
+    cg.add(var.set_poll_rt(config["poll_rt"]))
+    return var
+
+
+JURA_COFFEE_STOP_DEBUG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.use_id(JuraCoffee),
+    }
+)
+
+
+@automation.register_action(
+    "jura_coffee.stop_debug", StopDebugAction, JURA_COFFEE_STOP_DEBUG_SCHEMA,
+)
+async def stop_debug_action_to_code(config, action_id, template_arg, args):
+    var = cg.new_Pvariable(action_id, template_arg)
+    await cg.register_parented(var, config[CONF_ID])
+    return var
+
+
+JURA_COFFEE_ANNOTATE_DEBUG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.use_id(JuraCoffee),
+        cv.Required("message"): cv.templatable(cv.string),
+    }
+)
+
+
+@automation.register_action(
+    "jura_coffee.annotate_debug", AnnotateDebugAction, JURA_COFFEE_ANNOTATE_DEBUG_SCHEMA,
+)
+async def annotate_debug_action_to_code(config, action_id, template_arg, args):
+    var = cg.new_Pvariable(action_id, template_arg)
+    await cg.register_parented(var, config[CONF_ID])
+    templ = await cg.templatable(config["message"], args, cg.std_string)
+    cg.add(var.set_message(templ))
     return var
