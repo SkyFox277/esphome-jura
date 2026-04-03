@@ -3,6 +3,10 @@
 
 #include <cctype>
 
+#ifdef USE_DEBUG_HTTP
+#include <ESPAsyncWebServer.h>
+#endif
+
 namespace esphome {
 namespace jura_coffee {
 
@@ -265,6 +269,11 @@ void JuraCoffee::annotate_debug(const std::string &note) {
 }
 
 void JuraCoffee::loop() {
+#ifdef USE_DEBUG_HTTP
+  if (http_task_ != TASK_NONE && !http_result_ready_)
+    http_loop_tick_();
+#endif
+
   if (!debug_active_)
     return;
 
@@ -319,6 +328,9 @@ void JuraCoffee::loop() {
 
 void JuraCoffee::setup() {
   ESP_LOGCONFIG(TAG, "Setting up Jura Coffee component...");
+#ifdef USE_DEBUG_HTTP
+  setup_debug_http_(8080);
+#endif
 }
 
 void JuraCoffee::update() {
@@ -355,6 +367,143 @@ void JuraCoffee::dump_config() {
   LOG_BINARY_SENSOR("  ", "Needs Rinse",  needs_rinse_);
   LOG_TEXT_SENSOR("  ", "Last Response", last_response_);
 }
+
+// ── REST debug interface ─────────────────────────────────────────────────────
+
+#ifdef USE_DEBUG_HTTP
+
+static AsyncWebServer *debug_http_server_ = nullptr;
+
+static std::string json_escape(const std::string &s) {
+  std::string out;
+  out.reserve(s.size());
+  for (char c : s) {
+    if (c == '"') out += "\\\"";
+    else if (c == '\\') out += "\\\\";
+    else out += c;
+  }
+  return out;
+}
+
+void JuraCoffee::setup_debug_http_(uint16_t port) {
+  debug_http_server_ = new AsyncWebServer(port);
+
+  // GET /jura/cmd?q=RE:0000 → deferred execution, poll /jura/result
+  debug_http_server_->on("/jura/cmd", HTTP_GET, [this](AsyncWebServerRequest *req) {
+    if (!req->hasParam("q")) {
+      req->send(400, "application/json", "{\"error\":\"missing q parameter\"}");
+      return;
+    }
+    std::string cmd = req->getParam("q")->value().c_str();
+    if (is_command_blocked(cmd)) {
+      std::string body = "{\"cmd\":\"" + json_escape(cmd) + "\",\"blocked\":true,\"response\":\"BLOCKED\"}";
+      req->send(200, "application/json", body.c_str());
+      return;
+    }
+    if (http_task_ != TASK_NONE && !http_result_ready_) {
+      req->send(503, "application/json", "{\"error\":\"busy\"}");
+      return;
+    }
+    http_cmd_pending_ = cmd;
+    http_result_ready_ = false;
+    http_task_ = TASK_CMD;
+    req->send(202, "application/json", "{\"status\":\"pending\",\"poll\":\"/jura/result\"}");
+  });
+
+  // GET /jura/scan?from=00&to=F0&step=10 → scans RE:XXXX range
+  debug_http_server_->on("/jura/scan", HTTP_GET, [this](AsyncWebServerRequest *req) {
+    if (http_task_ != TASK_NONE && !http_result_ready_) {
+      req->send(503, "application/json", "{\"error\":\"busy\"}");
+      return;
+    }
+    scan_from_ = req->hasParam("from")
+        ? static_cast<uint16_t>(strtol(req->getParam("from")->value().c_str(), nullptr, 16)) : 0x00;
+    scan_to_ = req->hasParam("to")
+        ? static_cast<uint16_t>(strtol(req->getParam("to")->value().c_str(), nullptr, 16)) : 0xF0;
+    scan_step_ = req->hasParam("step")
+        ? static_cast<uint16_t>(strtol(req->getParam("step")->value().c_str(), nullptr, 16)) : 0x10;
+    if (scan_step_ == 0) scan_step_ = 0x10;
+    // Cap at 32 addresses to prevent runaway
+    if (scan_to_ > scan_from_ && (scan_to_ - scan_from_) / scan_step_ > 31)
+      scan_to_ = scan_from_ + scan_step_ * 31;
+    scan_current_ = scan_from_;
+    scan_results_json_ = "{\"scan\":[";
+    http_result_ready_ = false;
+    http_task_ = TASK_SCAN;
+    req->send(202, "application/json", "{\"status\":\"pending\",\"poll\":\"/jura/result\"}");
+  });
+
+  // GET /jura/result → poll for cmd or scan result
+  debug_http_server_->on("/jura/result", HTTP_GET, [this](AsyncWebServerRequest *req) {
+    if (http_task_ == TASK_NONE) {
+      req->send(200, "application/json", "{\"status\":\"idle\"}");
+      return;
+    }
+    if (!http_result_ready_) {
+      req->send(200, "application/json", "{\"status\":\"pending\"}");
+      return;
+    }
+    if (http_task_ == TASK_CMD) {
+      req->send(200, "application/json", http_cmd_result_.c_str());
+    } else if (http_task_ == TASK_SCAN) {
+      req->send(200, "application/json", scan_results_json_.c_str());
+    }
+    http_task_ = TASK_NONE;
+  });
+
+  debug_http_server_->begin();
+  ESP_LOGI(TAG, "Debug HTTP server started on port %u", port);
+}
+
+void JuraCoffee::http_loop_tick_() {
+  // Don't run HTTP tasks while debug dump is active (UART conflict)
+  if (debug_active_) {
+    if (http_task_ == TASK_CMD) {
+      http_cmd_result_ = "{\"error\":\"debug_dump_active\"}";
+    } else {
+      scan_results_json_ = "{\"error\":\"debug_dump_active\"}";
+    }
+    http_result_ready_ = true;
+    return;
+  }
+
+  if (http_task_ == TASK_CMD) {
+    std::string resp = cmd2jura(http_cmd_pending_);
+    if (resp.empty()) resp = "(no response)";
+    if (last_response_ != nullptr)
+      last_response_->publish_state(resp);
+    http_cmd_result_ = "{\"status\":\"done\",\"cmd\":\"" + json_escape(http_cmd_pending_) +
+                       "\",\"response\":\"" + json_escape(resp) + "\"}";
+    http_result_ready_ = true;
+  }
+
+  if (http_task_ == TASK_SCAN) {
+    if (scan_current_ <= scan_to_) {
+      char cmd[12];
+      snprintf(cmd, sizeof(cmd), "RE:%02X", static_cast<uint8_t>(scan_current_));
+      std::string resp = cmd2jura(cmd);
+      ESP_LOGI(TAG, "[SCAN] %s -> %s", cmd, resp.c_str());
+
+      if (scan_current_ != scan_from_)
+        scan_results_json_ += ",";
+      scan_results_json_ += "{\"addr\":\"";
+      scan_results_json_ += cmd;
+      scan_results_json_ += "\",\"response\":\"";
+      scan_results_json_ += json_escape(resp.empty() ? "(no response)" : resp);
+      scan_results_json_ += "\"}";
+
+      if (scan_current_ + scan_step_ > 0xFF || scan_current_ + scan_step_ > scan_to_) {
+        scan_current_ = scan_to_ + 1;  // done
+      } else {
+        scan_current_ += scan_step_;
+      }
+    } else {
+      scan_results_json_ += "],\"status\":\"done\"}";
+      http_result_ready_ = true;
+    }
+  }
+}
+#endif  // USE_DEBUG_HTTP
 
 }  // namespace jura_coffee
 }  // namespace esphome
