@@ -1,0 +1,297 @@
+# Lovelace-Dashboard für Jura Coffee F50.
+# Drei Views: Übersicht, Pflege-Monitoring, Diagnose.
+#
+# Install: Einstellungen → Dashboards → Dashboard hinzufügen → Neues
+# Dashboard → Drei-Punkte-Menü → Rohe Konfigurations-Editor → Inhalt
+# dieser Datei einfügen.
+
+title: Jura Coffee F50
+icon: mdi:coffee-maker
+views:
+  # ──────────────────────────────────────────────────────────────────────
+  - title: Übersicht
+    path: home
+    icon: mdi:coffee
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: glance
+            title: Maschinen-Status
+            columns: 3
+            entities:
+              - entity: binary_sensor.jura_coffee_f50_jura_coffee_f50_ready
+                name: Bereit
+              - entity: binary_sensor.jura_coffee_f50_jura_coffee_f50_needs_rinse
+                name: Genutzt seit Kaltstart
+                icon: mdi:water-sync
+              - entity: binary_sensor.jura_coffee_f50_jura_coffee_f50_need_cleaning
+                name: Pflege-Zyklus läuft
+                icon: mdi:broom
+              - entity: binary_sensor.jura_coffee_f50_jura_coffee_f50_tank_empty
+                name: Tank leer
+              - entity: binary_sensor.jura_coffee_f50_jura_coffee_f50_tray_missing
+                name: Trester fehlt
+              - entity: sensor.jura_coffee_f50_jura_coffee_f50_wifi_signal
+                name: WLAN
+
+          - type: horizontal-stack
+            cards:
+              - type: button
+                name: Start & Spülen
+                icon: mdi:coffee-maker
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.jura_coffee_f50_jura_coffee_f50_start_rinse
+              - type: button
+                name: Kaffee
+                icon: mdi:coffee
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.jura_coffee_f50_jura_coffee_f50_coffee
+              - type: button
+                name: Doppel
+                icon: mdi:coffee
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.jura_coffee_f50_jura_coffee_f50_double_coffee
+              - type: button
+                name: Spülen
+                icon: mdi:water
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.jura_coffee_f50_jura_coffee_f50_rinse
+              - type: button
+                name: Aus
+                icon: mdi:power-off
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.jura_coffee_f50_jura_coffee_f50_power_off
+
+      - type: entities
+        title: Bezüge (F50 Press-Count-Mapping)
+        state_color: false
+        entities:
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_single_espressos
+            name: "1×-Press (Mild)"
+            icon: mdi:coffee-outline
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_double_espressos
+            name: "2×-Press (Normal)"
+            icon: mdi:coffee
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_coffees
+            name: "3×-Press (Stark)"
+            icon: mdi:coffee-to-go
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_double_coffees
+            name: "Doppel-Taste"
+            icon: mdi:coffee
+          - type: divider
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_rinses
+            name: Spülvorgänge gesamt
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_cleanings
+            name: Reinigungen gesamt
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_descalings
+            name: Entkalkungen gesamt
+
+      - type: entities
+        title: Heute
+        entities:
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_coffees_since_cleaning
+            name: "Tassen heute (0x000E, resettet täglich)"
+            icon: mdi:cup
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_brews_since_cleaning
+            name: "Bezüge seit Reinigung (0x000F)"
+            icon: mdi:coffee
+          - entity: sensor.jura_pflege_prognose_tage
+            name: "Pflege in ca. Tagen (Hypothese)"
+            icon: mdi:calendar-clock
+
+  # ──────────────────────────────────────────────────────────────────────
+  - title: Pflege-Monitoring
+    path: maintenance
+    icon: mdi:broom
+    cards:
+      - type: markdown
+        content: |
+          ### A5 — Confirm Pflege trigger
+
+          Die vier Counter unten wurden alle durch die Reinigung am
+          2026-04-18 zurückgesetzt. Welcher zuerst seine Schwelle erreicht
+          und die nächste "Pflege drücken"-Meldung auslöst, ist der
+          **echte** Pflege-Trigger.
+
+          **Hypothesen:**
+          - `0x0005 HB` (Wochen-Ticker) — stärkster Kandidat, tickt
+            zeitbasiert, Schwelle vermutlich 2 Wochen
+          - `0x000F` (Bezüge) — konkurrierend, wächst +1 pro Brühvorgang
+          - `0x0011` (~7.6/Tag) — Treiber unbekannt
+          - `0x0016` (~2/Tag) — Treiber unbekannt, vermutlich Sessions
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            name: "Wochen seit Reinigung"
+            entity: sensor.jura_coffee_f50_jura_coffee_f50_maintenance_weeks_since_cleaning
+            min: 0
+            max: 4
+            severity:
+              green: 0
+              yellow: 1
+              red: 2
+            needle: true
+          - type: gauge
+            name: "Bezüge seit Reinigung (0x000F)"
+            entity: sensor.jura_coffee_f50_jura_coffee_f50_brews_since_cleaning
+            min: 0
+            max: 200
+            severity:
+              green: 0
+              yellow: 100
+              red: 135
+            needle: true
+
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            name: "Counter 0x0011"
+            entity: sensor.jura_coffee_f50_jura_coffee_f50_maintenance_counter_0x0011
+            min: 0
+            max: 150
+            severity:
+              green: 0
+              yellow: 75
+              red: 107
+            needle: true
+          - type: gauge
+            name: "Counter 0x0016"
+            entity: sensor.jura_coffee_f50_jura_coffee_f50_maintenance_counter_0x0016
+            min: 0
+            max: 40
+            severity:
+              green: 0
+              yellow: 20
+              red: 29
+            needle: true
+
+      - type: history-graph
+        title: "Verlauf der 4 Pflege-Kandidaten (14 Tage)"
+        hours_to_show: 336
+        refresh_interval: 60
+        entities:
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_maintenance_weeks_since_cleaning
+            name: "0x0005 HB — Wochen-Hypothese"
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_brews_since_cleaning
+            name: "0x000F — Bezüge seit Reinigung"
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_maintenance_counter_0x0011
+            name: "0x0011 — ~7.6/Tag unbekannt"
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_maintenance_counter_0x0016
+            name: "0x0016 — ~2/Tag unbekannt"
+
+      - type: markdown
+        title: "Referenzwerte aus Session 4"
+        content: |
+          **Pre-Clean-Schwellen (vor Reinigung 2026-04-18):**
+
+          - `0x0005 HB` → **2** (Wochen-Hypothese)
+          - `0x000F` → **135** (Bezüge)
+          - `0x0011` → **107** (unbekannt)
+          - `0x0016` → **29** (unbekannt)
+
+          Der Counter der seine Schwelle zuerst wieder erreicht ist der
+          tatsächliche Pflege-Trigger (A5 in TODO.md).
+
+      - type: entities
+        title: "Wartungs-Counter"
+        entities:
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_cleanings
+            name: "num_clean (0x0008)"
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_descalings
+            name: "num_descale (0x0009)"
+
+      - type: entities
+        title: "Konfiguration & Baseline"
+        entities:
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_maintenance_config_0x0005_low
+            name: "0x0005 LB (Config, konstant 20)"
+            icon: mdi:cog
+
+  # ──────────────────────────────────────────────────────────────────────
+  - title: Diagnose
+    path: diagnose
+    icon: mdi:stethoscope
+    cards:
+      - type: entities
+        title: "IC: byte 0"
+        entities:
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_ic_byte0_raw
+            name: "Rohwert (0–255)"
+          - entity: sensor.jura_ic_byte0_bits
+            name: "Bit-String"
+          - type: attribute
+            entity: sensor.jura_ic_byte0_bits
+            attribute: hex
+            name: "Hex"
+          - type: attribute
+            entity: sensor.jura_ic_byte0_bits
+            attribute: bit0_session_used
+            name: "bit0 session_used"
+          - type: attribute
+            entity: sensor.jura_ic_byte0_bits
+            attribute: bit1_cleaning_running_inv
+            name: "bit1 cleaning-running (inv)"
+          - type: attribute
+            entity: sensor.jura_ic_byte0_bits
+            attribute: bit3_tank_ok_inv
+            name: "bit3 tank OK (inv)"
+          - type: attribute
+            entity: sensor.jura_ic_byte0_bits
+            attribute: bit4_tray_inserted_inv
+            name: "bit4 tray inserted (inv)"
+
+      - type: entities
+        title: "Raw EEPROM Pages (Forensik)"
+        entities:
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_eeprom_page_rt0000_raw
+            name: "RT:0000 Rohdaten"
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_eeprom_page_rt1000_raw
+            name: "RT:1000 Rohdaten"
+
+      - type: entities
+        title: "Kommando-Interface"
+        entities:
+          - entity: text.jura_coffee_f50_jura_coffee_f50_send_command
+            name: "Kommando senden"
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_last_response
+            name: "Letzte Antwort"
+
+      - type: markdown
+        content: |
+          **Hinweis:** `AN:0A` ist vom Component blockiert
+          (EEPROM-Löschung). Port 8080 REST API ist zusätzlich verfügbar
+          für Skript-Zugriff — siehe [`dumps/README.md`](https://github.com/SkyFox277/esphome-jura/blob/main/dumps/README.md).
+
+      - type: entities
+        title: "Debug-Dump (im Component-Log)"
+        entities:
+          - entity: button.jura_coffee_f50_jura_coffee_f50_debug_start
+            name: "Debug-Dump starten"
+          - entity: button.jura_coffee_f50_jura_coffee_f50_debug_stop
+            name: "Debug-Dump stoppen"
+          - type: section
+            label: "Gerät"
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_uptime
+            name: "Uptime"
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_ip_address
+            name: "IP"
+          - entity: sensor.jura_coffee_f50_jura_coffee_f50_esphome_version
+            name: "Firmware"
+          - entity: binary_sensor.jura_coffee_f50_jura_coffee_f50_status
+            name: "Online-Status"
