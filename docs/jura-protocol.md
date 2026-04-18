@@ -1,6 +1,6 @@
 # Jura Impressa F50 — Protocol & Interface Reference
 
-Last updated: 2026-04-03
+Last updated: 2026-04-18
 
 ---
 

@@ -1,6 +1,6 @@
 # Jura Impressa F50 — Protokoll & Schnittstellendokumentation
 
-Stand: 2026-04-03
+Stand: 2026-04-18
 
 ---
 
