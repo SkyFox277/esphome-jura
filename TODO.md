@@ -127,9 +127,31 @@ Last updated: 2026-04-03
 - [ ] 0x000F — unknown (value 78, observe)
 
 ### A4 — Fix counter naming quirk (breaking change)
-- [ ] `num_single_espresso` → better name (e.g. `num_coffee_small`)
+
+Scheduled after all protocol-observation sessions (S5/S6) are complete and
+the true semantics of every sensor are confirmed from long-term InfluxDB
+history. Renaming config keys breaks the ESPHome unique_id and therefore
+splits InfluxDB history — do it in one coordinated release.
+
+Config keys to rename (confirmed misnomers):
+
+- [ ] F50 strength-by-press-count mapping:
+  - `num_single_espresso` (0x0000) → represents 1x-press coffee
+  - `num_double_espresso` (0x0001) → represents 2x-press normal coffee
+  - `num_coffee` (0x0002) → represents 3x-press strong coffee
+  - Target: `num_coffee_mild` / `num_coffee_normal` / `num_coffee_strong`
+    (or a model-specific schema in `MACHINE_PROFILES`)
+- [ ] `num_coffees_since_clean` (0x000E) → misnamed, actually a cups-today
+  counter with daily resets. Keep a sensor on 0x000E renamed to
+  `cups_today`, and point a new `num_coffees_since_clean` at 0x000F (the
+  real brews-since-cleaning counter)
+- [ ] `needs_rinse` (IC:bit0) → actually "session has been used since
+  cold start" — neither manual nor auto-rinse clears it. Rename to
+  something like `session_used` or `has_brewed`
 - [ ] Tag as major version (v2.0.0)
 - [ ] Update all docs + YAML examples
+- [ ] Provide migration guide: old entity_ids stay in HA as `unavailable`,
+  new ones start fresh — note that InfluxDB queries need to union both
 
 ---
 
