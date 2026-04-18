@@ -1,0 +1,61 @@
+# Template-Sensoren zur Unterstützung der Jura-Dashboards.
+#
+# Einbindung in configuration.yaml:
+#   template: !include dashboards/template-sensors.yaml
+#
+# Oder Inhalt in den bestehenden `template:`-Block kopieren.
+
+- sensor:
+    # Prognose auf die nächste Pflege-Aufforderung basierend auf der
+    # 0x0005-high-byte-Wochen-Hypothese (Session 4). Threshold = 2 wurde
+    # bei der gerade beendeten Pflege beobachtet — wenn sich das in der
+    # nächsten Iteration bestätigt, ist die Rechnung korrekt. Falls nicht,
+    # dieses Template anpassen sobald der echte Trigger bekannt ist (A5).
+    - name: "Jura Pflege Prognose Tage"
+      unique_id: jura_pflege_prognose_tage
+      unit_of_measurement: "d"
+      icon: mdi:calendar-clock
+      state: >
+        {% set hb = states('sensor.jura_coffee_f50_jura_coffee_f50_maintenance_weeks_since_cleaning') | float(-1) %}
+        {% set threshold = 2 %}
+        {% if hb < 0 %}unbekannt
+        {% elif hb >= threshold %}0
+        {% else %}{{ ((threshold - hb) * 7) | round(0) }}{% endif %}
+      attributes:
+        note: >
+          Basiert auf Session-4-Hypothese (0x0005 high byte = Wochen seit
+          Reinigung, Threshold = 2). Wert "unbekannt" heißt der Sensor
+          wurde noch nicht gelesen. Null bedeutet die Schwelle ist bereits
+          überschritten und Pflege sollte schon aktiv sein.
+        current_weeks: >
+          {{ states('sensor.jura_coffee_f50_jura_coffee_f50_maintenance_weeks_since_cleaning') }}
+        threshold_weeks: 2
+
+    # IC: byte 0 als lesbarer Bit-String. Nützlich für Diagnose, wenn die
+    # binary_sensors verdächtig flackern und man die tatsächliche Byte-Form
+    # sehen will.
+    - name: "Jura IC Byte0 Bits"
+      unique_id: jura_ic_byte0_bits_decoded
+      icon: mdi:numeric-7-box-multiple
+      state: >
+        {% set v = states('sensor.jura_coffee_f50_jura_coffee_f50_ic_byte0_raw') | int(0) %}
+        {{ '{0:08b}'.format(v) }}
+      attributes:
+        hex: >
+          0x{{ '%02X' | format(states('sensor.jura_coffee_f50_jura_coffee_f50_ic_byte0_raw') | int(0)) }}
+        decimal: >
+          {{ states('sensor.jura_coffee_f50_jura_coffee_f50_ic_byte0_raw') | int(0) }}
+        bit0_session_used: >
+          {{ (states('sensor.jura_coffee_f50_jura_coffee_f50_ic_byte0_raw') | int(0)) % 2 }}
+        bit1_cleaning_running_inv: >
+          {{ ((states('sensor.jura_coffee_f50_jura_coffee_f50_ic_byte0_raw') | int(0)) // 2) % 2 }}
+        bit3_tank_ok_inv: >
+          {{ ((states('sensor.jura_coffee_f50_jura_coffee_f50_ic_byte0_raw') | int(0)) // 8) % 2 }}
+        bit4_tray_inserted_inv: >
+          {{ ((states('sensor.jura_coffee_f50_jura_coffee_f50_ic_byte0_raw') | int(0)) // 16) % 2 }}
+
+# Der "echte" seit-Reinigung-Counter 0x000F ist direkt vom Component als
+# sensor.jura_coffee_f50_jura_coffee_f50_brews_since_cleaning verfügbar — kein Template-
+# Sensor nötig. Der irreführend benannte sensor.jura_coffee_f50_jura_coffee_f50_coffees_
+# since_cleaning (zeigt auf 0x000E, tatsächlich Tages-Tassen-Zähler) wird
+# bis v2.0 unverändert bleiben um InfluxDB-Historie zu bewahren.
