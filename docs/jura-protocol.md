@@ -319,16 +319,16 @@ IC: bit positions differ between model families. Two distinct layouts have been 
 
 All F50 status bits use inverted logic UNLESS noted: **0 = problem, 1 = OK**.
 
-| Bit | Value 1 means              | Value 0 means      | Config key                 | Logic    | Status           |
-| --- | -------------------------- | ------------------- | -------------------------- | -------- | ---------------- |
-| 0   | Needs rinse on power off   | No rinse pending    | `ic_needs_rinse_bit`       | 1=needs  | ✅ confirmed     |
-| 1   | Cleaning not needed        | Clean required      | `ic_need_clean_inverted`   | inverted | ✅ confirmed     |
-| 2   | Idle (not busy)            | Busy                | —                          | 1=idle   | ⚠️ hypothesis   |
-| 3   | Tank OK                    | Tank empty/missing  | `ic_tank_inverted`         | inverted | ✅ confirmed     |
-| 4   | Tray **inserted**          | Tray missing        | `ic_tray_inverted`         | inverted | ✅ confirmed     |
-| 5   | —                          | —                   | —                          | —        | ✅ always 0      |
-| 6   | —                          | —                   | —                          | —        | ❌ unreliable    |
-| 7   | —                          | —                   | —                          | —        | ✅ always 1      |
+| Bit | Value 1 means              | Value 0 means             | Config key                 | Logic    | Status           |
+| --- | -------------------------- | ------------------------- | -------------------------- | -------- | ---------------- |
+| 0   | Session used since cold    | Cold-start state          | `ic_needs_rinse_bit`       | 1=used   | ✅ confirmed     |
+| 1   | Not in cleaning cycle      | Cleaning cycle running    | `ic_need_clean_inverted`   | inverted | ✅ confirmed     |
+| 2   | Idle (not busy)            | Busy                      | —                          | 1=idle   | ⚠️ hypothesis   |
+| 3   | Tank OK                    | Tank empty/missing        | `ic_tank_inverted`         | inverted | ✅ confirmed     |
+| 4   | Tray **inserted**          | Tray missing              | `ic_tray_inverted`         | inverted | ✅ confirmed     |
+| 5   | —                          | —                         | —                          | —        | ✅ always 0      |
+| 6   | —                          | —                         | —                          | —        | ❌ unreliable    |
+| 7   | —                          | —                         | —                          | —        | ✅ always 1      |
 
 Example F50 responses:
 ```
@@ -336,11 +336,22 @@ ic:DFB01E00  0xDF = 1101 1111  → bit1=1, bit3=1, bit4=1 → all OK
 ic:D7B01E00  0xD7 = 1101 0111  → bit3=0 → tank empty
 ic:CFB01E00  0xCF = 1100 1111  → bit4=0 → tray missing
 ic:CEB01E00  0xCE = 1100 1110  → bit4=0 → tray missing (confirmed by physically removing tray: 0xDE→0xCE)
-ic:D9B01E00  0xD9 = 1101 1001  → bit1=0, bit2=0 → cleaning required ("Pflege drücken")
+ic:D9B01E00  0xD9 = 1101 1001  → bit1=0, bit2=0 → cleaning cycle running ("Pflege" phase active)
 ```
 
-> Bit 0 (needs_rinse): 0 after cold start, 1 after first coffee brewed. Triggers auto-rinse when AN:02 (power off) is sent.
-> Bit 5 is always 0 in all known F50 samples. Bit 6 oscillates between reads and is unreliable. Bit 7 is always 1.
+> Bit 0 (session-used flag): 0 after cold start, 1 after first coffee. Not
+> cleared by manual rinse, auto-rinse on shutdown, or a single power cycle —
+> extended cool-down is required (Session 4 observation, 2026-04-18).
+> Bit 1 is 0 during the actual cleaning cycle, 1 otherwise. It is NOT the
+> display-prompt "Pflege drücken" flag — the user can see the prompt while
+> bit 1 = 1, because the prompt condition lives elsewhere (see EEPROM 0x0005
+> hypothesis).
+> Bit 5 is always 0 in all known F50 samples. Bit 6 oscillates between reads
+> and is unreliable. Bit 7 is always 1.
+>
+> Sensor key naming: `ic_needs_rinse_bit` refers to bit 0 and the ESPHome
+> sensor key `needs_rinse` is misnamed — see A4 in TODO.md for the planned
+> v2.0 rename (`session_used`).
 
 **Layout B — E6, E8, ENA, J6 (confirmed from multiple community projects)**
 
@@ -385,26 +396,33 @@ The F50 has **10 pages** (160 words, 320 bytes) of readable EEPROM:
 
 Individual words can also be read via `RE:XX` (see below).
 
-#### EEPROM word map — confirmed from F50 sample data + community analysis
+#### EEPROM word map — confirmed from F50 hardware sessions (2026-04-03, 2026-04-18)
+
+On F50, the physical coffee-button press count selects strength and maps to
+three distinct EEPROM addresses (Session 4, 2026-04-18):
+1× press → `0x0000`, 2× press → `0x0001`, 3× press → `0x0002`.
+The existing sensor keys `num_single_espresso` / `num_double_espresso` /
+`num_coffee` point at these addresses but with misleading names — the
+planned rename lives in TODO.md A4.
 
 | EEPROM addr | RT offset | Length | Content                               | ESPHome sensor key      | Notes                                       |
 | ----------- | --------- | ------ | ------------------------------------- | ----------------------- | ------------------------------------------- |
-| 0x0000      | 3         | 4      | Bezüge Normal (normal-size coffee)    | `num_single_espresso`   | F50: Coffee (FA:06) increments this         |
-| 0x0001      | 7         | 4      | Bezüge doppelte Normal                | `num_double_espresso`   | F50: Double Coffee (FA:07) increments this  |
-| 0x0002      | 11        | 4      | Bezüge klein (small / espresso)       | `num_coffee`            | F50: always 0 (no small-size button)        |
-| 0x0003      | 15        | 4      | Bezüge 2x klein                       | `num_double_coffee`     | F50: always 0                               |
+| 0x0000      | 3         | 4      | F50: 1×-press coffee (mild)           | `num_single_espresso`   | ✅ confirmed session 4                       |
+| 0x0001      | 7         | 4      | F50: 2×-press coffee (normal)         | `num_double_espresso`   | ✅ confirmed session 4                       |
+| 0x0002      | 11        | 4      | F50: 3×-press coffee (strong)         | `num_coffee`            | ✅ confirmed session 4                       |
+| 0x0003      | 15        | 4      | F50: double-button coffee             | `num_double_coffee`     | ✅ confirmed session 4 — no strength variant |
 | 0x0004      | 19        | 4      | Bezüge Espresso?                      | —                       | meaning model-specific, 0 on F50            |
-| 0x0005      | 23        | 4      | Spezialkaffee                         | —                       | —                                           |
+| 0x0005      | 23        | 4      | Byte-split: LB=config (=0x14 on F50), HB=cleaning-reset time ticker | — | ⚠️ hypothesis — primary Pflege-trigger candidate, see session 4 |
 | 0x0006      | 27        | 4      | Pulver (powder / grounds counter)     | —                       | —                                           |
-| 0x0007      | 31        | 4      | Spülvorgänge (rinse count)            | `num_rinse`             | ✅ confirmed — increments on FA:02 (NOT on auto-rinse at shutdown) |
-| 0x0008      | 35        | 4      | Reinigungszyklen (cleaning cycles)    | `num_clean`             | ✅ confirmed — actual cleaning counter      |
+| 0x0007      | 31        | 4      | Spülvorgänge (rinse count)            | `num_rinse`             | ✅ confirmed — increments on FA:02 AND on auto-rinse at shutdown (F50 2026-04-18 supersedes earlier session 2 claim) |
+| 0x0008      | 35        | 4      | Reinigungszyklen (cleaning cycles)    | `num_clean`             | ✅ confirmed — +1 per cleaning cycle (session 4) |
 | 0x0009      | 39        | 4      | Entkalkungszyklen (descaling cycles)  | `num_descale`           | ✅ confirmed                                |
 | 0x000A      | 43        | 4      | unknown                               | —                       | —                                           |
 | 0x000B      | 47        | 4      | unknown (typically 17)                | —                       | —                                           |
 | 0x000C      | 51        | 4      | unknown (typically 1)                 | —                       | —                                           |
-| 0x000D      | 55        | 4      | unknown (value 566, ⚠️ observe)       | —                       | possibly coffees since descaling (higher count than 0x000F) |
-| 0x000E      | 59        | 4      | Bezüge seit Reinigung (coffees since cleaning) | `num_coffees_since_clean` | ✅ confirmed — increments +1/coffee, resets after cleaning |
-| 0x000F      | 63        | 4      | unknown counter (⚠️ under observation) | —                      | previously assumed descaling — value 78 does not match known descaling history |
+| 0x000D      | 55        | 4      | Brew-event counter                    | —                       | ✅ session 4 — +1 per brew command, +3 on strong-double (internal pre-flush), not reset by cleaning |
+| 0x000E      | 59        | 4      | Cups counter with daily reset         | `num_coffees_since_clean` | ⚠️ sensor key is misnamed — +1 single / +2 double, resets daily, transient value 0xFA during cleaning. NOT "since cleaning" |
+| 0x000F      | 63        | 4      | Brews since cleaning                  | —                       | ✅ session 4 — +1 per brew command, reset by cleaning. Supersedes session 2's speculative "coffees since descaling" label |
 
 #### Extended EEPROM (RE: only — not visible via RT:0000)
 
@@ -413,13 +431,13 @@ Words 0x10–0x1F can only be read via `RE:XX` and written via `WE:XX,YYYY`.
 
 | EEPROM addr | RE: value (F50 sample) | Content                                        |
 | ----------- | ---------------------- | ---------------------------------------------- |
-| 0x0010      | `8747`                 | unknown (constant across sessions)             |
-| 0x0011      | `0037`                 | unknown                                        |
+| 0x0010      | `8747`                 | Long-term brew-event counter — mirrors 0x000D pattern, grows +1 per brew, not reset by cleaning |
+| 0x0011      | `0037`                 | Cleaning-reset counter — grows ~7.6/day in normal use, driver unknown (neither coffee nor rinse moves it) |
 | 0x0012      | `00EC`                 | unknown                                        |
 | 0x0013      | `0320`                 | unknown                                        |
-| 0x0014      | `C05D`                 | unknown                                        |
-| 0x0015      | `4292`                 | unknown                                        |
-| 0x0016      | `0000`                 | unknown (zero)                                 |
+| 0x0014      | `C05D`                 | Per-product brew-phase counter — +5 mild / +6 normal & strong / +7 mild-double. Not water volume |
+| 0x0015      | `4292`                 | Long-term brew-command counter — mirrors 0x000F pattern, +1 per brew command |
+| 0x0016      | `0000`                 | Cleaning-reset counter — grows ~2/day in normal use, hypothesis: per session or power-on |
 | 0x0017      | `0000`                 | unknown (zero)                                 |
 | 0x0018      | `0000`                 | unknown (intermittent timeout on read)         |
 | 0x0019      | `0000`                 | unknown (zero)                                 |
@@ -447,12 +465,26 @@ rt:0FF307B210630BB1000000140077392E002D000D167800000000021B00020040
                              ^^^^→ 0x000D = 13 Descalings (addr 0x0009)
 ```
 
-> **Note on counter labels:** The ESPHome keys `num_single_espresso`/`num_double_espresso`
-> map to EEPROM addresses 0x0000/0x0001. On the F50 (no espresso), these are the
-> actual coffee/double-coffee counters. The keys `num_coffee`/`num_double_coffee`
-> map to addresses 0x0002/0x0003 which are always 0 on the F50.
-> This naming inconsistency is a known quirk — use `num_single_espresso` for
-> coffee counts on F50.
+> **Note on counter labels (session 4 reconciliation, 2026-04-18):**
+>
+> - On F50 the press-count maps strength to three different addresses:
+>   1× press → `0x0000` (sensor `num_single_espresso`),
+>   2× press → `0x0001` (sensor `num_double_espresso`),
+>   3× press → `0x0002` (sensor `num_coffee`). All three ESPHome sensor keys
+>   are misnamed on F50 — none of them represents espresso nor a "small"
+>   size. The double-coffee button always increments `0x0003` regardless of
+>   press count.
+> - `num_coffees_since_clean` points at `0x000E`, which is a cups counter with
+>   daily resets — not a since-cleaning counter. The real brews-since-cleaning
+>   counter is `0x000F` (unexposed; planned new sensor). The `0x000E` sensor
+>   also takes a transient value of 0xFA (250) during the cleaning cycle.
+> - `needs_rinse` points at IC:bit0, which is actually a "session used since
+>   cold start" flag — not cleared by manual rinse, auto-rinse, or a brief
+>   power cycle. Sensor name will be corrected in v2.0 (see TODO A4).
+>
+> All ESPHome sensor keys are preserved as-is to keep existing HA entity_ids
+> and InfluxDB history intact. The coordinated rename lands in the v2.0
+> release once observation sessions complete.
 
 ### RR: — Read RAM (Debug)
 

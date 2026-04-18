@@ -322,8 +322,8 @@ Alle F50-Statusbits verwenden invertierte Logik SOFERN NICHT anders angegeben: *
 
 | Bit | Wert 1 bedeutet              | Wert 0 bedeutet          | Config-Key                 | Logik    | Status            |
 | --- | ---------------------------- | ------------------------ | -------------------------- | -------- | ----------------- |
-| 0   | Spülung beim Ausschalten nötig | Keine Spülung nötig    | `ic_needs_rinse_bit`       | 1=nötig  | ✅ bestätigt      |
-| 1   | Reinigung nicht nötig        | Reinigung erforderlich   | `ic_need_clean_inverted`   | invertiert | ✅ bestätigt    |
+| 0   | Session benutzt seit Kaltstart | Kaltstart-Zustand      | `ic_needs_rinse_bit`       | 1=benutzt | ✅ bestätigt     |
+| 1   | Nicht in Reinigungszyklus    | Reinigungszyklus läuft   | `ic_need_clean_inverted`   | invertiert | ✅ bestätigt    |
 | 2   | Bereit (nicht beschäftigt)   | Beschäftigt              | —                          | 1=bereit | ⚠️ Hypothese     |
 | 3   | Tank OK                      | Tank leer / fehlt        | `ic_tank_inverted`         | invertiert | ✅ bestätigt    |
 | 4   | Schale eingesetzt            | Schale fehlt             | `ic_tray_inverted`         | invertiert | ✅ bestätigt    |
@@ -337,11 +337,22 @@ ic:DFB01E00  0xDF = 1101 1111  → Bit1=1, Bit3=1, Bit4=1 → alles OK
 ic:D7B01E00  0xD7 = 1101 0111  → Bit3=0 → Tank leer
 ic:CFB01E00  0xCF = 1100 1111  → Bit4=0 → Schale fehlt
 ic:CEB01E00  0xCE = 1100 1110  → Bit4=0 → Schale fehlt (bestätigt durch physisches Entfernen: 0xDE→0xCE)
-ic:D9B01E00  0xD9 = 1101 1001  → Bit1=0, Bit2=0 → Reinigung nötig ("Pflege drücken")
+ic:D9B01E00  0xD9 = 1101 1001  → Bit1=0, Bit2=0 → Reinigungszyklus aktiv ("Pflege"-Phase läuft)
 ```
 
-> Bit 0 (needs_rinse): 0 nach Kaltstart, 1 nach erstem Kaffeebezug. Löst Auto-Spülung bei AN:02 (Ausschalten) aus.
+> Bit 0 (Session-Used-Flag): 0 nach Kaltstart, 1 nach erstem Kaffee. Wird
+> weder durch manuelles Spülen noch durch Auto-Spülung beim Ausschalten
+> oder einen einzelnen Power-Cycle gelöscht — längeres Abkühlen nötig
+> (Session 4, 2026-04-18).
+> Bit 1 ist 0 während des aktiven Reinigungszyklus, sonst 1. Es ist NICHT
+> das "Pflege drücken"-Display-Flag — die Anzeige kann erscheinen während
+> Bit 1 = 1 ist, weil die Display-Bedingung woanders sitzt (siehe EEPROM
+> 0x0005-Hypothese).
 > Bit 5 ist in allen bekannten F50-Messwerten immer 0. Bit 6 oszilliert zwischen Abfragen und ist unzuverlässig. Bit 7 ist immer 1.
+>
+> Hinweis zur Sensor-Benennung: `ic_needs_rinse_bit` verweist auf Bit 0 und
+> der ESPHome-Sensor-Key `needs_rinse` ist irreführend — siehe A4 in TODO.md
+> für den geplanten v2.0-Rename (`session_used`).
 
 **Layout B — E6, E8, ENA, J6 (bestätigt aus mehreren Community-Projekten)**
 
@@ -385,26 +396,33 @@ Der F50 hat **10 Pages** (160 Wörter, 320 Bytes) lesbares EEPROM:
 
 Einzelne Wörter können auch über `RE:XX` gelesen werden (siehe unten).
 
-#### EEPROM-Wort-Tabelle — bestätigt aus F50-Messungen + Community-Analyse
+#### EEPROM-Wort-Tabelle — bestätigt aus F50-Hardware-Sessions (2026-04-03, 2026-04-18)
+
+Beim F50 wählt die Anzahl der Tastendrücke die Stärke und mappt auf drei
+verschiedene EEPROM-Adressen (Session 4, 2026-04-18):
+1× Druck → `0x0000`, 2× Druck → `0x0001`, 3× Druck → `0x0002`.
+Die bestehenden Sensor-Keys `num_single_espresso` / `num_double_espresso` /
+`num_coffee` zeigen auf diese Adressen, sind aber irreführend benannt —
+der geplante Rename steht in TODO.md A4.
 
 | EEPROM-Adr. | RT-Offset | Länge | Inhalt                            | ESPHome-Sensor-Key      | Hinweise                                      |
 | ----------- | --------- | ----- | --------------------------------- | ----------------------- | --------------------------------------------- |
-| 0x0000      | 3         | 4     | Bezüge Normal (normale Größe)     | `num_single_espresso`   | F50: Kaffee (FA:06) zählt hier                |
-| 0x0001      | 7         | 4     | Bezüge doppelte Normal            | `num_double_espresso`   | F50: Doppelkaffee (FA:07) zählt hier          |
-| 0x0002      | 11        | 4     | Bezüge klein (klein / Espresso)   | `num_coffee`            | F50: immer 0 (keine Klein-Taste)              |
-| 0x0003      | 15        | 4     | Bezüge 2x klein                   | `num_double_coffee`     | F50: immer 0                                  |
+| 0x0000      | 3         | 4     | F50: 1×-Druck Kaffee (mild)       | `num_single_espresso`   | ✅ bestätigt Session 4                        |
+| 0x0001      | 7         | 4     | F50: 2×-Druck Kaffee (normal)     | `num_double_espresso`   | ✅ bestätigt Session 4                        |
+| 0x0002      | 11        | 4     | F50: 3×-Druck Kaffee (stark)      | `num_coffee`            | ✅ bestätigt Session 4                        |
+| 0x0003      | 15        | 4     | F50: Doppeltaste-Kaffee           | `num_double_coffee`     | ✅ bestätigt Session 4 — keine Strength-Variante |
 | 0x0004      | 19        | 4     | Bezüge Espresso?                  | —                       | modellspezifisch, 0 beim F50                  |
-| 0x0005      | 23        | 4     | Spezialkaffee                     | —                       | —                                             |
+| 0x0005      | 23        | 4     | Byte-Split: LB=Konfig (=0x14 beim F50), HB=reinigungs-zurückgesetzter Zeit-Ticker | — | ⚠️ Hypothese — primärer Pflege-Trigger-Kandidat, siehe Session 4 |
 | 0x0006      | 27        | 4     | Pulver (Trester-Zähler)           | —                       | —                                             |
-| 0x0007      | 31        | 4     | Spülvorgänge                      | `num_rinse`             | ✅ bestätigt — zählt bei FA:02 (NICHT bei Auto-Spülung beim Ausschalten) |
-| 0x0008      | 35        | 4     | Reinigungszyklen                  | `num_clean`             | ✅ bestätigt — echter Reinigungs-Zähler       |
+| 0x0007      | 31        | 4     | Spülvorgänge                      | `num_rinse`             | ✅ bestätigt — zählt bei FA:02 UND bei Auto-Spülung beim Ausschalten (F50 2026-04-18 ersetzt früheres Session-2-Statement) |
+| 0x0008      | 35        | 4     | Reinigungszyklen                  | `num_clean`             | ✅ bestätigt — +1 pro Reinigungszyklus (Session 4) |
 | 0x0009      | 39        | 4     | Entkalkungszyklen                 | `num_descale`           | ✅ bestätigt                                  |
 | 0x000A      | 43        | 4     | unbekannt                         | —                       | —                                             |
 | 0x000B      | 47        | 4     | unbekannt (typisch 17)            | —                       | —                                             |
 | 0x000C      | 51        | 4     | unbekannt (typisch 1)             | —                       | —                                             |
-| 0x000D      | 55        | 4     | unbekannt (Wert 566, ⚠️ beobachten) | —                    | möglicherweise Bezüge seit Entkalkung (höherer Wert als 0x000F) |
-| 0x000E      | 59        | 4     | Bezüge seit Reinigung             | `num_coffees_since_clean` | ✅ bestätigt — zählt +1/Kaffee, wird nach Reinigung zurückgesetzt |
-| 0x000F      | 63        | 4     | unbekannter Zähler (⚠️ beobachten) | —                     | zuvor als Entkalkung angenommen — Wert 78 passt nicht zur bekannten Entkalkungshistorie |
+| 0x000D      | 55        | 4     | Brüh-Event-Zähler                 | —                       | ✅ Session 4 — +1 pro Brüh-Befehl, +3 bei Strong-Double (interne Vorspülung), nicht durch Reinigung zurückgesetzt |
+| 0x000E      | 59        | 4     | Tassen-Zähler mit täglichem Reset | `num_coffees_since_clean` | ⚠️ Sensor-Key ist irreführend benannt — +1 Single / +2 Double, resettet täglich, transienter Wert 0xFA während Reinigung. NICHT "seit Reinigung" |
+| 0x000F      | 63        | 4     | Bezüge seit Reinigung             | —                       | ✅ Session 4 — +1 pro Brüh-Befehl, Reset durch Reinigung. Ersetzt Session-2-Spekulation "Bezüge seit Entkalkung" |
 
 #### Erweitertes EEPROM (nur via RE: — nicht sichtbar über RT:0000)
 
@@ -413,13 +431,13 @@ Wörter 0x10–0x1F können nur über `RE:XX` gelesen und über `WE:XX,YYYY` ges
 
 | EEPROM-Adr. | RE:-Wert (F50 Probe) | Inhalt                                            |
 | ----------- | -------------------- | ------------------------------------------------- |
-| 0x0010      | `8747`               | unbekannt (konstant über Sessions)                |
-| 0x0011      | `0037`               | unbekannt                                         |
+| 0x0010      | `8747`               | Langzeit-Brüh-Event-Zähler — spiegelt 0x000D-Muster, +1 pro Brew, nicht durch Reinigung zurückgesetzt |
+| 0x0011      | `0037`               | Reinigungs-zurückgesetzter Zähler — wächst ~7.6/Tag im Normalbetrieb, Treiber unbekannt (weder Kaffee noch Spülung bewegen ihn) |
 | 0x0012      | `00EC`               | unbekannt                                         |
 | 0x0013      | `0320`               | unbekannt                                         |
-| 0x0014      | `C05D`               | unbekannt                                         |
-| 0x0015      | `4292`               | unbekannt                                         |
-| 0x0016      | `0000`               | unbekannt (Null)                                  |
+| 0x0014      | `C05D`               | Per-Produkt Brüh-Phasen-Zähler — +5 mild / +6 normal & stark / +7 mild-double. Nicht Wassermenge |
+| 0x0015      | `4292`               | Langzeit-Brüh-Befehls-Zähler — spiegelt 0x000F-Muster, +1 pro Brüh-Befehl |
+| 0x0016      | `0000`               | Reinigungs-zurückgesetzter Zähler — wächst ~2/Tag im Normalbetrieb, Hypothese: pro Session oder Power-On |
 | 0x0017      | `0000`               | unbekannt (Null)                                  |
 | 0x0018      | `0000`               | unbekannt (sporadischer Timeout beim Lesen)       |
 | 0x0019      | `0000`               | unbekannt (Null)                                  |
@@ -447,12 +465,29 @@ rt:0FF307B210630BB1000000140077392E002D000D167800000000021B00020040
                              ^^^^→ 0x000D = 13 Entkalkungen (Adr. 0x0009)
 ```
 
-> **Hinweis zur Sensor-Benennung:** Die ESPHome-Keys `num_single_espresso`/`num_double_espresso`
-> entsprechen EEPROM-Adressen 0x0000/0x0001. Beim F50 (kein Espresso) sind das die
-> tatsächlichen Kaffee-/Doppelkaffee-Zähler. Die Keys `num_coffee`/`num_double_coffee`
-> entsprechen Adressen 0x0002/0x0003, die beim F50 immer 0 sind.
-> Diese Namens-Inkonsistenz ist ein bekanntes Quirk — für Kaffee-Zähler beim F50
-> `num_single_espresso` verwenden.
+> **Hinweis zur Sensor-Benennung (Session-4-Abgleich, 2026-04-18):**
+>
+> - Beim F50 mappt die Anzahl der Tastendrücke die Stärke auf drei
+>   verschiedene Adressen: 1× Druck → `0x0000` (Sensor `num_single_espresso`),
+>   2× Druck → `0x0001` (Sensor `num_double_espresso`),
+>   3× Druck → `0x0002` (Sensor `num_coffee`). Alle drei ESPHome-Sensor-Keys
+>   sind beim F50 irreführend — keiner davon repräsentiert Espresso oder eine
+>   "kleine" Größe. Die Doppelkaffee-Taste zählt unabhängig von der Stärke
+>   immer `0x0003`.
+> - `num_coffees_since_clean` zeigt auf `0x000E`, einen Tassen-Zähler mit
+>   täglichem Reset — kein Seit-Reinigung-Zähler. Der echte
+>   Bezüge-seit-Reinigung-Zähler ist `0x000F` (nicht exponiert; geplanter
+>   neuer Sensor). Der `0x000E`-Sensor nimmt außerdem während des
+>   Reinigungszyklus einen transienten Wert von 0xFA (250) an.
+> - `needs_rinse` zeigt auf IC:bit0, das tatsächlich ein "Session benutzt seit
+>   Kaltstart"-Flag ist — wird nicht durch manuelles Spülen, Auto-Spülung oder
+>   einen kurzen Power-Cycle gelöscht. Sensor-Name wird in v2.0 korrigiert
+>   (siehe TODO A4).
+>
+> Alle ESPHome-Sensor-Keys bleiben zunächst unverändert, damit bestehende
+> HA-Entity-IDs und InfluxDB-Historie erhalten bleiben. Der koordinierte
+> Rename landet im v2.0-Release sobald die Observation-Sessions abgeschlossen
+> sind.
 
 ### RR: — RAM lesen (Debug)
 
