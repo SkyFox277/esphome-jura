@@ -214,6 +214,14 @@ Config keys to rename (session 4 findings):
 - [ ] Update `actions/setup-python` to v6+
 - [ ] Update `actions/cache` to v5+
 
+### M2 — Log IC: bit configuration in `dump_config()`
+- [ ] `dump_config()` currently prints the sensor pointers but not the
+  eight `ic_*_bit` / `ic_*_inverted` values that `machine_type` resolves
+  into. Users adding a profile for a new Jura model cannot confirm from
+  the boot log which bits the component is reading. Add
+  `ESP_LOGCONFIG` lines for all eight so contributors see the resolved
+  per-model profile at boot without enabling DEBUG.
+
 ---
 
 ## Open questions
