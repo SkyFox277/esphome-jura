@@ -102,7 +102,7 @@ for page, offset in [('RT:0000', 0x00), ('RT:1000', 0x10)]:
 | 1       | 2026-04-03 | Startup protocol observation   | `2026-04-03_session1_startup.md`           |
 | 2       | 2026-04-03 | Full sensor/EEPROM sweep       | `2026-04-03_session2_analysis.md`          |
 | 3       | 2026-04-03 | Water amount investigation     | `2026-04-03_session3_water_amount.md`      |
-| 4       | 2026-04-18 | Cleaning cycle + per-event     | `2026-04-18_session4_cleaning.md`          |
+| 4       | 2026-04-18 | Cleaning cycle + per-event     | `2026-04-18_session4_cleaning.md` (upcoming) |
 
 ## InfluxDB entity ids
 
