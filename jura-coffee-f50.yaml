@@ -11,6 +11,9 @@ esphome:
   friendly_name: ${friendly_name}
   platformio_options:
     build_flags:
+      # USE_DEBUG_HTTP exposes a read-only REST API on port 8080 for protocol
+      # investigation (see dumps/README.md). The endpoints have no auth — only
+      # enable on trusted networks and remove once debugging is done.
       - "-DUSE_DEBUG_HTTP"
     build_unflags:
       - "-Werror"

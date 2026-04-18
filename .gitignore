@@ -17,6 +17,7 @@ examples/
 CLAUDE.md
 PLAN.md
 dumps/*.log
+dumps/STOP_MONITOR
 
 # macOS
 .DS_Store

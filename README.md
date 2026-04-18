@@ -209,6 +209,11 @@ Log output format:
 Optional HTTP API on port 8080 for rapid protocol investigation. Enabled at compile time
 via build flag — disabled by default, adds ~1KB RAM overhead.
 
+> **Debug workflow:** Helper scripts and session methodology live in
+> [`dumps/README.md`](dumps/README.md) — includes `full_dump.sh`,
+> `monitor_cleaning.sh`, and the before/after diff pattern used for all protocol
+> investigation sessions.
+
 ### Enable
 
 ```yaml
