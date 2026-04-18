@@ -105,7 +105,7 @@ views:
         title: Heute
         entities:
           - entity: sensor.jura_coffee_f50_jura_coffee_f50_coffees_since_cleaning
-            name: "Tassen heute (0x000E, resettet täglich)"
+            name: "Tassen diese Session (0x000E, Reset beim Kaltstart)"
             icon: mdi:cup
           - entity: sensor.jura_coffee_f50_jura_coffee_f50_brews_since_cleaning
             name: "Bezüge seit Reinigung (0x000F)"

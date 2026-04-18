@@ -421,7 +421,7 @@ der geplante Rename steht in TODO.md A4.
 | 0x000B      | 47        | 4     | unbekannt (typisch 17)            | —                       | —                                             |
 | 0x000C      | 51        | 4     | unbekannt                         | —                       | Wert variiert (0 in Session-2-Probe unten, 2 beim Session-4-F50) |
 | 0x000D      | 55        | 4     | Brüh-Event-Zähler                 | —                       | ✅ Session 4 — +1 pro Brüh-Befehl, +3 bei Strong-Double (interne Vorspülung), nicht durch Reinigung zurückgesetzt |
-| 0x000E      | 59        | 4     | Tassen-Zähler mit täglichem Reset | `num_coffees_since_clean` | ⚠️ Sensor-Key ist irreführend benannt — +1 Single / +2 Double, resettet täglich, transienter Wert 0xFA während Reinigung. NICHT "seit Reinigung" |
+| 0x000E      | 59        | 4     | Tassen-Zähler, Reset beim Kaltstart | `num_coffees_since_clean` | ⚠️ Sensor-Key ist irreführend benannt — +1 Single / +2 Double; Reset auf 0 bei Kaltstart (vollständiger Stromverlust + Reboot); transienter Wert 0xFA während Reinigung. Wer ein tägliches Reset-Muster beobachtet, hat meist eine nächtliche Steckdosen-Automation — semantisch korrekt ist `cups_since_cold_start`, nicht "seit Reinigung" |
 | 0x000F      | 63        | 4     | Bezüge seit Reinigung             | —                       | ✅ Session 4 — +1 pro Brüh-Befehl, Reset durch Reinigung. Ersetzt Session-2-Spekulation "Bezüge seit Entkalkung" |
 
 #### Erweitertes EEPROM (nur via RE: — nicht sichtbar über RT:0000)

@@ -421,7 +421,7 @@ planned rename lives in TODO.md A4.
 | 0x000B      | 47        | 4      | unknown (typically 17)                | —                       | —                                           |
 | 0x000C      | 51        | 4      | unknown                               | —                       | value varies (0 in pre-session-2 sample response below, 2 on session-4 F50) |
 | 0x000D      | 55        | 4      | Brew-event counter                    | —                       | ✅ session 4 — +1 per brew command, +3 on strong-double (internal pre-flush), not reset by cleaning |
-| 0x000E      | 59        | 4      | Cups counter with daily reset         | `num_coffees_since_clean` | ⚠️ sensor key is misnamed — +1 single / +2 double, resets daily, transient value 0xFA during cleaning. NOT "since cleaning" |
+| 0x000E      | 59        | 4      | Cups counter, resets on cold-start    | `num_coffees_since_clean` | ⚠️ sensor key is misnamed — +1 single / +2 double; resets to 0 on a cold-start (full power loss + reboot); transient 0xFA during cleaning. "Daily reset" patterns in practice are a by-product of nightly power-cycling automations — semantic name is `cups_since_cold_start`, not "since cleaning" |
 | 0x000F      | 63        | 4      | Brews since cleaning                  | —                       | ✅ session 4 — +1 per brew command, reset by cleaning. Supersedes session 2's speculative "coffees since descaling" label |
 
 #### Extended EEPROM (RE: only — not visible via RT:0000)

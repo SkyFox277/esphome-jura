@@ -131,7 +131,7 @@ Entkalkungs-Countdown ergänzt werden.
 | `sensor.jura_coffee_f50_jura_coffee_f50_coffees`                              | 0x0002 (3×-Press)                                          |
 | `sensor.jura_coffee_f50_jura_coffee_f50_double_coffees`                       | 0x0003 (Doppel-Taste)                                      |
 | `sensor.jura_coffee_f50_jura_coffee_f50_rinses`                               | 0x0007 (Rinse + Auto-Rinse)                                |
-| `sensor.jura_coffee_f50_jura_coffee_f50_coffees_since_cleaning`               | 0x000E — **misnamed**, ist Tassen-Tageszähler              |
+| `sensor.jura_coffee_f50_jura_coffee_f50_coffees_since_cleaning`               | 0x000E — **misnamed**, ist Tassen-pro-Cold-Start (sieht täglich aus bei nächtlicher Socket-Automation) |
 | `binary_sensor.jura_coffee_f50_jura_coffee_f50_ready`                         | RR:03 bit 2                                                |
 | `binary_sensor.jura_coffee_f50_jura_coffee_f50_need_cleaning`                 | IC:bit 1 — **misnamed**, ist "cleaning-cycle-running"      |
 | `binary_sensor.jura_coffee_f50_jura_coffee_f50_needs_rinse`                   | IC:bit 0 — **misnamed**, ist "session_used"                |
