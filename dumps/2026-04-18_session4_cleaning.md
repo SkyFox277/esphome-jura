@@ -382,12 +382,9 @@ sensors, then watching InfluxDB trajectories** over days/weeks.
 
 The method below is the re-usable pattern for the next protocol observation
 (descaling / Entkalken). Written in the imperative as a check-list so either
-a human or an agent can execute it.
-
-> Requires the local dump tooling (`dumps/full_dump.sh`, `dumps/monitor_cleaning.sh`,
-> `dumps/README.md`) introduced in the `chore/debug-workflow-scripts` PR. On a
-> checkout where that PR has not yet landed, the scripts and the Python diff
-> template referenced below are not available in-tree.
+a human or an agent can execute it. The dump tooling it relies on
+(`dumps/full_dump.sh`, `dumps/monitor_cleaning.sh`, `dumps/README.md`) lives
+under `dumps/` in the repo.
 
 1. **Prerequisites.**
    - Firmware flashed with `-DUSE_DEBUG_HTTP`
@@ -433,9 +430,8 @@ a human or an agent can execute it.
 ## Cross-references
 
 - Main README: [REST Debug API](../README.md#rest-debug-api)
-- Workflow docs: [dumps/README.md](README.md) — resolves once the
-  `chore/debug-workflow-scripts` PR is merged
-- Protocol reference: [docs/jura-protocol.md](../docs/jura-protocol.md) — pending
-  reconciliation with Session 4 findings (follow-up PR)
+- Workflow docs: [dumps/README.md](README.md)
+- Protocol reference: [docs/jura-protocol.md](../docs/jura-protocol.md) —
+  reconciled with Session 4 findings in PR #8
 - TODO tracking: [TODO.md](../TODO.md) — A3 (0x000E re-classification) and A4
   (post-observation rename plan) both reference this session
