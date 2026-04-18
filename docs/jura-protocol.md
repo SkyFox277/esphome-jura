@@ -419,7 +419,7 @@ planned rename lives in TODO.md A4.
 | 0x0009      | 39        | 4      | Entkalkungszyklen (descaling cycles)  | `num_descale`           | ✅ confirmed                                |
 | 0x000A      | 43        | 4      | unknown                               | —                       | —                                           |
 | 0x000B      | 47        | 4      | unknown (typically 17)                | —                       | —                                           |
-| 0x000C      | 51        | 4      | unknown (typically 1)                 | —                       | —                                           |
+| 0x000C      | 51        | 4      | unknown                               | —                       | value varies (0 in pre-session-2 sample response below, 2 on session-4 F50) |
 | 0x000D      | 55        | 4      | Brew-event counter                    | —                       | ✅ session 4 — +1 per brew command, +3 on strong-double (internal pre-flush), not reset by cleaning |
 | 0x000E      | 59        | 4      | Cups counter with daily reset         | `num_coffees_since_clean` | ⚠️ sensor key is misnamed — +1 single / +2 double, resets daily, transient value 0xFA during cleaning. NOT "since cleaning" |
 | 0x000F      | 63        | 4      | Brews since cleaning                  | —                       | ✅ session 4 — +1 per brew command, reset by cleaning. Supersedes session 2's speculative "coffees since descaling" label |
@@ -458,8 +458,8 @@ Words 0x10–0x1F can only be read via `RE:XX` and written via `WE:XX,YYYY`.
 Example F50 response (decoded):
 ```
 rt:0FF307B210630BB1000000140077392E002D000D167800000000021B00020040
-     ^^^^              → 0x0FF3 = 4083 Normal coffees (addr 0x0000)
-         ^^^^          → 0x07B2 = 1970 Double coffees (addr 0x0001)
+     ^^^^              → 0x0FF3 = 4083 1×-press coffees (addr 0x0000)
+         ^^^^          → 0x07B2 = 1970 2×-press coffees (addr 0x0001)
                      ^^^^       → 0x392E = 14638 Rinses (addr 0x0007)
                          ^^^^   → 0x002D = 45 Cleanings (addr 0x0008)
                              ^^^^→ 0x000D = 13 Descalings (addr 0x0009)

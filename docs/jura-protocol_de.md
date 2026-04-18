@@ -419,7 +419,7 @@ der geplante Rename steht in TODO.md A4.
 | 0x0009      | 39        | 4     | Entkalkungszyklen                 | `num_descale`           | ✅ bestätigt                                  |
 | 0x000A      | 43        | 4     | unbekannt                         | —                       | —                                             |
 | 0x000B      | 47        | 4     | unbekannt (typisch 17)            | —                       | —                                             |
-| 0x000C      | 51        | 4     | unbekannt (typisch 1)             | —                       | —                                             |
+| 0x000C      | 51        | 4     | unbekannt                         | —                       | Wert variiert (0 in Session-2-Probe unten, 2 beim Session-4-F50) |
 | 0x000D      | 55        | 4     | Brüh-Event-Zähler                 | —                       | ✅ Session 4 — +1 pro Brüh-Befehl, +3 bei Strong-Double (interne Vorspülung), nicht durch Reinigung zurückgesetzt |
 | 0x000E      | 59        | 4     | Tassen-Zähler mit täglichem Reset | `num_coffees_since_clean` | ⚠️ Sensor-Key ist irreführend benannt — +1 Single / +2 Double, resettet täglich, transienter Wert 0xFA während Reinigung. NICHT "seit Reinigung" |
 | 0x000F      | 63        | 4     | Bezüge seit Reinigung             | —                       | ✅ Session 4 — +1 pro Brüh-Befehl, Reset durch Reinigung. Ersetzt Session-2-Spekulation "Bezüge seit Entkalkung" |
@@ -458,8 +458,8 @@ Wörter 0x10–0x1F können nur über `RE:XX` gelesen und über `WE:XX,YYYY` ges
 Beispiel F50 Antwort (dekodiert):
 ```
 rt:0FF307B210630BB1000000140077392E002D000D167800000000021B00020040
-     ^^^^              → 0x0FF3 = 4083 Normale Kaffees (Adr. 0x0000)
-         ^^^^          → 0x07B2 = 1970 Doppelkaffees  (Adr. 0x0001)
+     ^^^^              → 0x0FF3 = 4083 1×-Druck Kaffees (Adr. 0x0000)
+         ^^^^          → 0x07B2 = 1970 2×-Druck Kaffees (Adr. 0x0001)
                      ^^^^       → 0x392E = 14638 Spülvorgänge (Adr. 0x0007)
                          ^^^^   → 0x002D = 45 Reinigungen (Adr. 0x0008)
                              ^^^^→ 0x000D = 13 Entkalkungen (Adr. 0x0009)
