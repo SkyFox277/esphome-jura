@@ -72,6 +72,23 @@ jura_coffee:
     name: "${friendly_name} Descalings"
   num_coffees_since_clean:
     name: "${friendly_name} Coffees Since Cleaning"
+  # Session 4 (2026-04-18) maintenance sensors — see dumps/2026-04-18_session4_cleaning.md
+  num_brews_since_clean:
+    name: "${friendly_name} Brews Since Cleaning"
+  maintenance_weeks_since_clean:
+    name: "${friendly_name} Maintenance Weeks Since Cleaning"
+  maintenance_config_0x0005_low:
+    name: "${friendly_name} Maintenance Config 0x0005 Low"
+  maintenance_counter_0x0011:
+    name: "${friendly_name} Maintenance Counter 0x0011"
+  maintenance_counter_0x0016:
+    name: "${friendly_name} Maintenance Counter 0x0016"
+  ic_byte0_raw:
+    name: "${friendly_name} IC Byte0 Raw"
+  raw_page_rt0000:
+    name: "${friendly_name} EEPROM Page RT0000 Raw"
+  raw_page_rt1000:
+    name: "${friendly_name} EEPROM Page RT1000 Raw"
   last_response:
     name: "${friendly_name} Last Response"
 
