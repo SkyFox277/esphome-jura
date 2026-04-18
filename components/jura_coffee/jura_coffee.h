@@ -31,6 +31,15 @@ class JuraCoffee : public PollingComponent, public uart::UARTDevice {
   void set_num_rinse_sensor(sensor::Sensor *s) { num_rinse_ = s; }
   void set_num_descale_sensor(sensor::Sensor *s) { num_descale_ = s; }
   void set_num_coffees_since_clean_sensor(sensor::Sensor *s) { num_coffees_since_clean_ = s; }
+  // Session 4 additions — see docs/jura-protocol.md and dumps/2026-04-18_session4_cleaning.md
+  void set_num_brews_since_clean_sensor(sensor::Sensor *s) { num_brews_since_clean_ = s; }
+  void set_maintenance_weeks_since_clean_sensor(sensor::Sensor *s) { maintenance_weeks_since_clean_ = s; }
+  void set_maintenance_config_0x0005_low_sensor(sensor::Sensor *s) { maintenance_config_0x0005_low_ = s; }
+  void set_maintenance_counter_0x0011_sensor(sensor::Sensor *s) { maintenance_counter_0x0011_ = s; }
+  void set_maintenance_counter_0x0016_sensor(sensor::Sensor *s) { maintenance_counter_0x0016_ = s; }
+  void set_ic_byte0_raw_sensor(sensor::Sensor *s) { ic_byte0_raw_ = s; }
+  void set_raw_page_rt0000_sensor(text_sensor::TextSensor *s) { raw_page_rt0000_ = s; }
+  void set_raw_page_rt1000_sensor(text_sensor::TextSensor *s) { raw_page_rt1000_ = s; }
   void set_last_response_sensor(text_sensor::TextSensor *s) { last_response_ = s; }
 
   // IC: bit-position configuration (model-specific)
@@ -60,9 +69,10 @@ class JuraCoffee : public PollingComponent, public uart::UARTDevice {
   // Jura protocol: encodes ASCII command, sends over UART, returns response
   std::string cmd2jura(const std::string &command);
 
-  void read_sensors();   // IC:  — tray / tank / need_clean / needs_rinse bits
-  void read_ready();     // RR:03 — operating temperature reached (bit 2)
-  void read_status();    // RT:0000 — EEPROM counters
+  void read_sensors();           // IC:  — tray / tank / need_clean / needs_rinse bits + raw byte
+  void read_ready();             // RR:03 — operating temperature reached (bit 2)
+  void read_status();            // RT:0000 — EEPROM counters (page 0)
+  void read_extended_status();   // RT:1000 — extended EEPROM (page 1, addrs 0x0010-0x001F)
 
   // Safety: block catastrophic commands (AN:0A = EEPROM clear)
   bool is_command_blocked(const std::string &command);
@@ -80,6 +90,14 @@ class JuraCoffee : public PollingComponent, public uart::UARTDevice {
   sensor::Sensor *num_rinse_{nullptr};
   sensor::Sensor *num_descale_{nullptr};
   sensor::Sensor *num_coffees_since_clean_{nullptr};
+  sensor::Sensor *num_brews_since_clean_{nullptr};
+  sensor::Sensor *maintenance_weeks_since_clean_{nullptr};
+  sensor::Sensor *maintenance_config_0x0005_low_{nullptr};
+  sensor::Sensor *maintenance_counter_0x0011_{nullptr};
+  sensor::Sensor *maintenance_counter_0x0016_{nullptr};
+  sensor::Sensor *ic_byte0_raw_{nullptr};
+  text_sensor::TextSensor *raw_page_rt0000_{nullptr};
+  text_sensor::TextSensor *raw_page_rt1000_{nullptr};
   text_sensor::TextSensor *last_response_{nullptr};
 
   // IC: bit positions — defaults match most Jura models

@@ -147,6 +147,10 @@ void JuraCoffee::read_sensors() {
     need_clean_->publish_state(need_clean);
   if (needs_rinse_ != nullptr)
     needs_rinse_->publish_state(needs_rinse);
+  // Raw byte for retroactive bit archaeology in InfluxDB — lets users or
+  // template sensors re-derive any bit without waiting for a firmware update.
+  if (ic_byte0_raw_ != nullptr)
+    ic_byte0_raw_->publish_state(val);
 }
 
 void JuraCoffee::read_ready() {
@@ -169,15 +173,19 @@ void JuraCoffee::read_ready() {
 
 void JuraCoffee::read_status() {
   // RT:0000 returns EEPROM line: "rt:" + 64 hex chars (32 bytes / 16 words).
-  // EEPROM word map (confirmed from F50 sample data + speicheradressen.txt):
-  //   offset  3..6  (word 0x0000): Bezüge Normal (coffee / normal size)
-  //   offset  7..10 (word 0x0001): Bezüge doppelte Normal (double coffee)
-  //   offset 11..14 (word 0x0002): Bezüge klein (small / espresso on other models)
-  //   offset 15..18 (word 0x0003): Bezüge 2x klein (double small)
-  //   offset 31..34 (word 0x0007): Spülvorgänge (rinse count)
-  //   offset 35..38 (word 0x0008): Reinigungszyklen (cleaning cycles)
-  //   offset 39..42 (word 0x0009): Entkalkungszyklen (descaling cycles)
-  //   offset 59..62 (word 0x000E): Bezüge seit Reinigung (coffees since cleaning)
+  // EEPROM word map (confirmed from F50 sample data + session 4 per-event tests):
+  //   offset  3..6  (word 0x0000): F50 1×-press coffee
+  //   offset  7..10 (word 0x0001): F50 2×-press coffee
+  //   offset 11..14 (word 0x0002): F50 3×-press coffee (other models: small/espresso)
+  //   offset 15..18 (word 0x0003): F50 double-button coffee (press-agnostic)
+  //   offset 23..26 (word 0x0005): byte-split — HB = cleaning-reset time ticker
+  //                                (Pflege-trigger hypothesis), LB = config (=20 on F50)
+  //   offset 31..34 (word 0x0007): rinse count (FA:02 AND auto-rinse)
+  //   offset 35..38 (word 0x0008): cleaning cycles
+  //   offset 39..42 (word 0x0009): descaling cycles
+  //   offset 59..62 (word 0x000E): cups counter (+1 single, +2 double, daily reset,
+  //                                transient 0xFA during cleaning — NOT since-cleaning)
+  //   offset 63..66 (word 0x000F): brews since cleaning (confirmed session 4)
   std::string result = this->cmd2jura("RT:0000");
   ESP_LOGD(TAG, "RT:0000 response: '%s'", result.c_str());
 
@@ -196,6 +204,13 @@ void JuraCoffee::read_status() {
     num_coffee_->publish_state(parse(11, 4));
   if (num_double_coffee_ != nullptr && result.size() >= 19)
     num_double_coffee_->publish_state(parse(15, 4));
+  if (result.size() >= 27) {
+    long word_0x0005 = parse(23, 4);
+    if (maintenance_weeks_since_clean_ != nullptr)
+      maintenance_weeks_since_clean_->publish_state((word_0x0005 >> 8) & 0xFF);
+    if (maintenance_config_0x0005_low_ != nullptr)
+      maintenance_config_0x0005_low_->publish_state(word_0x0005 & 0xFF);
+  }
   if (num_rinse_ != nullptr && result.size() >= 35)
     num_rinse_->publish_state(parse(31, 4));
   if (num_clean_ != nullptr && result.size() >= 39)
@@ -204,6 +219,35 @@ void JuraCoffee::read_status() {
     num_descale_->publish_state(parse(39, 4));
   if (num_coffees_since_clean_ != nullptr && result.size() >= 63)
     num_coffees_since_clean_->publish_state(parse(59, 4));
+  if (num_brews_since_clean_ != nullptr && result.size() >= 67)
+    num_brews_since_clean_->publish_state(parse(63, 4));
+  if (raw_page_rt0000_ != nullptr)
+    raw_page_rt0000_->publish_state(result);
+}
+
+void JuraCoffee::read_extended_status() {
+  // RT:1000 returns extended EEPROM (words 0x0010-0x001F). Only the session-4
+  // cleaning-reset candidates are exposed as discrete sensors; the full page
+  // also goes out as a text sensor so any future word can be reconstructed
+  // from InfluxDB history without a firmware update.
+  //   offset  7..10 (word 0x0011): unknown cleaning-reset counter, ~7.6/day
+  //   offset 27..30 (word 0x0016): unknown cleaning-reset counter, ~2/day
+  std::string result = this->cmd2jura("RT:1000");
+  ESP_LOGD(TAG, "RT:1000 response: '%s'", result.c_str());
+
+  if (result.size() < 11)
+    return;
+
+  auto parse = [&](size_t start, size_t len) -> long {
+    return strtol(result.substr(start, len).c_str(), nullptr, 16);
+  };
+
+  if (maintenance_counter_0x0011_ != nullptr && result.size() >= 11)
+    maintenance_counter_0x0011_->publish_state(parse(7, 4));
+  if (maintenance_counter_0x0016_ != nullptr && result.size() >= 31)
+    maintenance_counter_0x0016_->publish_state(parse(27, 4));
+  if (raw_page_rt1000_ != nullptr)
+    raw_page_rt1000_->publish_state(result);
 }
 
 // ── Command sending ──────────────────────────────────────────────────────────
@@ -346,6 +390,7 @@ void JuraCoffee::update() {
   if (++update_counter_ >= 5) {
     update_counter_ = 0;
     read_status();
+    read_extended_status();
   }
 }
 
@@ -362,9 +407,17 @@ void JuraCoffee::dump_config() {
   LOG_SENSOR("  ", "Cleanings",        num_clean_);
   LOG_SENSOR("  ", "Rinses",           num_rinse_);
   LOG_SENSOR("  ", "Descalings",       num_descale_);
-  LOG_SENSOR("  ", "Coffees Since Cleaning", num_coffees_since_clean_);
+  LOG_SENSOR("  ", "Coffees Since Cleaning",      num_coffees_since_clean_);
+  LOG_SENSOR("  ", "Brews Since Cleaning",        num_brews_since_clean_);
+  LOG_SENSOR("  ", "Maint. Weeks Since Clean",    maintenance_weeks_since_clean_);
+  LOG_SENSOR("  ", "Maint. Config 0x0005 Low",    maintenance_config_0x0005_low_);
+  LOG_SENSOR("  ", "Maint. Counter 0x0011",       maintenance_counter_0x0011_);
+  LOG_SENSOR("  ", "Maint. Counter 0x0016",       maintenance_counter_0x0016_);
+  LOG_SENSOR("  ", "IC: byte 0 raw",              ic_byte0_raw_);
   LOG_BINARY_SENSOR("  ", "Ready",        ready_);
   LOG_BINARY_SENSOR("  ", "Needs Rinse",  needs_rinse_);
+  LOG_TEXT_SENSOR("  ", "RT:0000 raw",   raw_page_rt0000_);
+  LOG_TEXT_SENSOR("  ", "RT:1000 raw",   raw_page_rt1000_);
   LOG_TEXT_SENSOR("  ", "Last Response", last_response_);
 }
 

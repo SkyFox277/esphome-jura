@@ -46,6 +46,24 @@ CONF_NUM_CLEAN               = "num_clean"
 CONF_NUM_RINSE               = "num_rinse"
 CONF_NUM_DESCALE             = "num_descale"
 CONF_NUM_COFFEES_SINCE_CLEAN = "num_coffees_since_clean"
+# ── Session 4 (2026-04-18) additions — see docs/jura-protocol.md ────────────
+# Confirmed counter at 0x000F (resets on cleaning, +1 per brew command).
+CONF_NUM_BREWS_SINCE_CLEAN         = "num_brews_since_clean"
+# Byte split of 0x0005. High byte is the leading Pflege-trigger hypothesis;
+# low byte is a constant configuration value (0x14 on F50). Both exposed
+# independently for longitudinal observation in InfluxDB.
+CONF_MAINTENANCE_WEEKS_SINCE_CLEAN = "maintenance_weeks_since_clean"
+CONF_MAINTENANCE_CONFIG_0X0005_LOW = "maintenance_config_0x0005_low"
+# Other EEPROM words that also reset on cleaning but whose driver is unknown.
+CONF_MAINTENANCE_COUNTER_0X0011    = "maintenance_counter_0x0011"
+CONF_MAINTENANCE_COUNTER_0X0016    = "maintenance_counter_0x0016"
+# Numeric IC: byte 0 — keeps all 8 bits in InfluxDB for later bit archaeology
+# without committing to a specific bit interpretation.
+CONF_IC_BYTE0_RAW                  = "ic_byte0_raw"
+# Raw RT page responses for forensic analysis — allows retroactive parsing
+# of any word even if it was not explicitly exposed as a sensor.
+CONF_RAW_PAGE_RT0000               = "raw_page_rt0000"
+CONF_RAW_PAGE_RT1000               = "raw_page_rt1000"
 CONF_LAST_RESPONSE           = "last_response"
 
 # IC: bit profiles per known machine type.
@@ -229,6 +247,56 @@ CONFIG_SCHEMA = cv.All(
                 state_class=STATE_CLASS_MEASUREMENT,
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             ),
+            cv.Optional(CONF_NUM_BREWS_SINCE_CLEAN): sensor.sensor_schema(
+                unit_of_measurement=UNIT_EMPTY,
+                icon="mdi:counter",
+                accuracy_decimals=0,
+                state_class=STATE_CLASS_MEASUREMENT,
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
+            cv.Optional(CONF_MAINTENANCE_WEEKS_SINCE_CLEAN): sensor.sensor_schema(
+                unit_of_measurement=UNIT_EMPTY,
+                icon="mdi:calendar-clock",
+                accuracy_decimals=0,
+                state_class=STATE_CLASS_MEASUREMENT,
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
+            cv.Optional(CONF_MAINTENANCE_CONFIG_0X0005_LOW): sensor.sensor_schema(
+                unit_of_measurement=UNIT_EMPTY,
+                icon="mdi:cog",
+                accuracy_decimals=0,
+                state_class=STATE_CLASS_MEASUREMENT,
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
+            cv.Optional(CONF_MAINTENANCE_COUNTER_0X0011): sensor.sensor_schema(
+                unit_of_measurement=UNIT_EMPTY,
+                icon="mdi:counter",
+                accuracy_decimals=0,
+                state_class=STATE_CLASS_MEASUREMENT,
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
+            cv.Optional(CONF_MAINTENANCE_COUNTER_0X0016): sensor.sensor_schema(
+                unit_of_measurement=UNIT_EMPTY,
+                icon="mdi:counter",
+                accuracy_decimals=0,
+                state_class=STATE_CLASS_MEASUREMENT,
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
+            cv.Optional(CONF_IC_BYTE0_RAW): sensor.sensor_schema(
+                unit_of_measurement=UNIT_EMPTY,
+                icon="mdi:numeric",
+                accuracy_decimals=0,
+                state_class=STATE_CLASS_MEASUREMENT,
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
+            cv.Optional(CONF_RAW_PAGE_RT0000): text_sensor.text_sensor_schema(
+                icon="mdi:code-array",
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
+            cv.Optional(CONF_RAW_PAGE_RT1000): text_sensor.text_sensor_schema(
+                icon="mdi:code-array",
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
             cv.Optional(CONF_LAST_RESPONSE): text_sensor.text_sensor_schema(
                 icon="mdi:console",
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
@@ -275,14 +343,25 @@ async def to_code(config):
         (CONF_NUM_RINSE, "set_num_rinse_sensor"),
         (CONF_NUM_DESCALE, "set_num_descale_sensor"),
         (CONF_NUM_COFFEES_SINCE_CLEAN, "set_num_coffees_since_clean_sensor"),
+        (CONF_NUM_BREWS_SINCE_CLEAN, "set_num_brews_since_clean_sensor"),
+        (CONF_MAINTENANCE_WEEKS_SINCE_CLEAN, "set_maintenance_weeks_since_clean_sensor"),
+        (CONF_MAINTENANCE_CONFIG_0X0005_LOW, "set_maintenance_config_0x0005_low_sensor"),
+        (CONF_MAINTENANCE_COUNTER_0X0011, "set_maintenance_counter_0x0011_sensor"),
+        (CONF_MAINTENANCE_COUNTER_0X0016, "set_maintenance_counter_0x0016_sensor"),
+        (CONF_IC_BYTE0_RAW, "set_ic_byte0_raw_sensor"),
     ]:
         if key in config:
             sens = await sensor.new_sensor(config[key])
             cg.add(getattr(var, setter)(sens))
 
-    if CONF_LAST_RESPONSE in config:
-        sens = await text_sensor.new_text_sensor(config[CONF_LAST_RESPONSE])
-        cg.add(var.set_last_response_sensor(sens))
+    for key, setter in [
+        (CONF_RAW_PAGE_RT0000, "set_raw_page_rt0000_sensor"),
+        (CONF_RAW_PAGE_RT1000, "set_raw_page_rt1000_sensor"),
+        (CONF_LAST_RESPONSE, "set_last_response_sensor"),
+    ]:
+        if key in config:
+            sens = await text_sensor.new_text_sensor(config[key])
+            cg.add(getattr(var, setter)(sens))
 
 
 # ── Actions ───────────────────────────────────────────────────────────────────
