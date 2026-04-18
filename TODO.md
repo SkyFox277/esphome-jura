@@ -133,7 +133,12 @@ the true semantics of every sensor are confirmed from long-term InfluxDB
 history. Renaming config keys breaks the ESPHome unique_id and therefore
 splits InfluxDB history — do it in one coordinated release.
 
-Config keys to rename (confirmed misnomers):
+> Session 4 (2026-04-18) findings supersede several earlier claims in
+> A3 and `docs/jura-protocol.md` — most notably the 0x000E label. The
+> docs and A3 are reconciled in a follow-up PR; the list below is the
+> planned target state once those corrections land.
+
+Config keys to rename (session 4 findings):
 
 - [ ] F50 strength-by-press-count mapping:
   - `num_single_espresso` (0x0000) → represents 1x-press coffee
