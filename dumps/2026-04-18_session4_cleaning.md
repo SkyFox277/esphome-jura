@@ -35,13 +35,26 @@ Key outcomes:
   correspond to these three addresses but with misleading names.
 - **Auto-rinse-on-shutdown DOES increment the rinse counter** (0x0007, +1).
   This contradicts Session 2's conclusion — updated finding today supersedes it.
-- **`0x0005` is most likely our primary Pflege trigger** — byte-split interpretation:
-  low byte `0x14` (20) stays constant (configuration), high byte ticks from 0 and
-  gets cleared by cleaning. Pre-clean high byte was `0x02`, matching ~2 weeks of
-  elapsed time since the previous cleaning.
-- **`0x000F`, `0x0011`, `0x0016` are also reset by cleaning** but represent
-  different phenomena (brew-count-since-clean, unknown per-day counter, unknown
-  per-session counter) — none is time-based like `0x0005`.
+- **Session 2 EEPROM labels at 0x000D, 0x000E, 0x000F were all wrong.**
+  Session 2 labelled 0x000D as "Coffees since cleaning ⚠️", 0x000E as "Unknown
+  counter ⚠️", and 0x000F as "Coffees since descaling ✅". Session 4 shows:
+  0x000D is a brew-event counter (not reset by cleaning), 0x000E is a daily
+  cups counter (not reset by cleaning at all — transient value only), and
+  **0x000F is the one that actually resets on cleaning**, so it tracks brews
+  since cleaning, not descaling. Session 2's "✅" on 0x000F was extrapolation
+  from a single +1 observation after a coffee, not from a descaling test.
+- **`0x0005` is our leading Pflege-trigger hypothesis — not yet confirmed.**
+  Byte-split interpretation: low byte `0x14` (20) stays constant (configuration),
+  high byte ticks from 0 and gets cleared by cleaning. Pre-clean high byte was
+  `0x02`, matching ~2 weeks of elapsed time since the previous cleaning (roughly
+  "1 tick per week"). The time-based reading is inferred from the growth delta
+  alone; no direct tick observed. Requires longitudinal confirmation — see
+  Open questions.
+- **`0x000F`, `0x0011`, `0x0016` are also reset by cleaning** but appear to
+  represent different phenomena (brew-count-since-clean, unknown per-day counter,
+  unknown per-session counter). Unlike `0x0005`, their growth rates match
+  plausible event counts rather than pure elapsed time — though none of these
+  event hypotheses are confirmed either.
 
 The identification of which of these four counters is the primary trigger requires
 **longitudinal observation** (Section "Open questions"); all four reset together
@@ -339,7 +352,7 @@ brief internal cycles) rather than pure noise.
 | Rinse counter            | 0x0007                                 | +1 on FA:02 AND on auto-rinse                          |
 | Cleaning counter         | 0x0008                                 | +1 per cleaning cycle                                  |
 | Descaling counter        | 0x0009                                 | +1 per descale (expected, not exercised this session)  |
-| Cleaning-reset set       | 0x0005 HB, 0x000F, 0x0011, 0x0016      | All cleared on cleaning, none move on brew/rinse       |
+| Cleaning-reset set       | 0x0005 HB, 0x000F, 0x0011, 0x0016      | All cleared on cleaning, none move on brew/rinse — which one is the Pflege trigger is an open question |
 
 ---
 
@@ -349,9 +362,9 @@ These cannot be settled by single events because the candidates are either time-
 or tick on rare/unreproducible internal events. They are resolved by **deploying
 sensors, then watching InfluxDB trajectories** over days/weeks.
 
-- **Which of `0x0005 HB`, `0x0011`, `0x0016` is the actual Pflege trigger?** All
-  four reset on cleaning today. Observation will show their per-day growth rates
-  and the value at which the next "Pflege drücken" appears.
+- **Which of `0x0005 HB`, `0x000F`, `0x0011`, `0x0016` is the actual Pflege
+  trigger?** All four reset on cleaning today. Observation will show their
+  per-day growth rates and the value at which the next "Pflege drücken" appears.
 - **What drives `0x0011` growth (~7.6/day historically)?** Not coffees, not manual
   rinse, not auto-rinse. Possibly heater cycles, brew-group movements, or specific
   internal maintenance ticks.
@@ -370,6 +383,11 @@ sensors, then watching InfluxDB trajectories** over days/weeks.
 The method below is the re-usable pattern for the next protocol observation
 (descaling / Entkalken). Written in the imperative as a check-list so either
 a human or an agent can execute it.
+
+> Requires the local dump tooling (`dumps/full_dump.sh`, `dumps/monitor_cleaning.sh`,
+> `dumps/README.md`) introduced in the `chore/debug-workflow-scripts` PR. On a
+> checkout where that PR has not yet landed, the scripts and the Python diff
+> template referenced below are not available in-tree.
 
 1. **Prerequisites.**
    - Firmware flashed with `-DUSE_DEBUG_HTTP`
@@ -415,7 +433,8 @@ a human or an agent can execute it.
 ## Cross-references
 
 - Main README: [REST Debug API](../README.md#rest-debug-api)
-- Workflow docs: [dumps/README.md](README.md)
+- Workflow docs: [dumps/README.md](README.md) — resolves once the
+  `chore/debug-workflow-scripts` PR is merged
 - Protocol reference: [docs/jura-protocol.md](../docs/jura-protocol.md) — pending
   reconciliation with Session 4 findings (follow-up PR)
 - TODO tracking: [TODO.md](../TODO.md) — A3 (0x000E re-classification) and A4
