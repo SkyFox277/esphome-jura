@@ -170,6 +170,12 @@ changes exposing the four cleaning-reset candidates as sensors.
   is furthest above its post-session-4 baseline at that moment
 - [ ] Validate the `0x0005` weekly-tick hypothesis specifically: high byte
   should increment by 1 roughly every 7 days regardless of usage
+- [ ] Separate automation-induced patterns from machine-intrinsic behaviour.
+  The current F50 runs with a nightly socket-cut automation (23:00 off,
+  06:50 on), so daily resets observed in InfluxDB (`0x000E`) and the
+  ~8/day rinse rate are partially automation artefacts. Where possible,
+  cross-check hypotheses against a window where the machine is left
+  continuously powered.
 - [ ] Resolution feeds A4 (the correct Pflege-related sensor name) and A2
   (the automation threshold)
 
@@ -193,10 +199,14 @@ Config keys to rename (session 4 findings):
   - `num_coffee` (0x0002) → represents 3x-press strong coffee
   - Target: `num_coffee_mild` / `num_coffee_normal` / `num_coffee_strong`
     (or a model-specific schema in `MACHINE_PROFILES`)
-- [ ] `num_coffees_since_clean` (0x000E) → misnamed, actually a cups-today
-  counter with daily resets. Keep a sensor on 0x000E renamed to
-  `cups_today`, and point a new `num_coffees_since_clean` at 0x000F (the
-  real brews-since-cleaning counter)
+- [ ] `num_coffees_since_clean` (0x000E) → misnamed, actually a cups-since-
+  cold-start counter. Keep a sensor on 0x000E renamed to
+  `cups_since_cold_start` (or simply `cups_this_session`), and point a new
+  `num_coffees_since_clean` at 0x000F (the real brews-since-cleaning
+  counter). Note: users with nightly socket-cut automations see this
+  reset daily; without such automation the reset cadence is set by
+  however often the machine is cold-booted — which is why the name
+  should reference the cold-start event, not a time unit
 - [ ] `needs_rinse` (IC:bit0) → actually "session has been used since
   cold start" — neither manual nor auto-rinse clears it. Rename to
   something like `session_used` or `has_brewed`

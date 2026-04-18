@@ -7,6 +7,27 @@ Trigger: machine showed "Pflege drücken" for ~2 days without cleaning performed
 
 ---
 
+## Environmental context — user's power automation
+
+The F50 in this setup is not left continuously powered:
+
+- The machine is rarely used in the evening and reaches its **internal idle
+  timeout** on its own, which triggers an **auto-rinse and a graceful
+  transition into standby** (confirmed: 0x0007 increments by 1 on this
+  auto-rinse).
+- A Home Assistant automation cuts **power to the socket at 23:00** after
+  the machine is already in standby. Because the shutdown is graceful
+  first, this is effectively variant B of the "auto-rinse / no auto-rinse"
+  distinction — the auto-rinse always happens, the socket cut just ensures
+  no vampire load overnight.
+- Power is restored at **06:50** (occasionally earlier by manual
+  intervention since other devices share the socket). The machine waits
+  in cold-off state until the user presses power on.
+- Any "daily reset" pattern in InfluxDB (notably on `0x000E`) is therefore
+  a **consequence of this automation**, not a machine-intrinsic property.
+  On a setup without nightly power-cut, a different reset cadence is
+  expected — this is called out as an open question below.
+
 ## Executive summary
 
 Session 4 pursued four goals and produced three major reclassifications:
@@ -228,10 +249,17 @@ variant exists for the double button — both mild-double (1× press) and strong
 ### Cups vs. brews (`0x000E` vs. `0x000F`)
 
 - `0x000E` increments by **2 on double coffees, 1 on single** — it is a cups
-  counter, not a brew counter. Resets daily (confirmed from InfluxDB 30-day
-  history). Hijacked for a `0xFA` (250) progress value during cleaning.
+  counter, not a brew counter. It also takes a transient `0xFA` (250) value
+  during the cleaning cycle (used as a progress indicator by the firmware).
+  **Reset semantic:** the value goes to 0 on cold-start. In this user's
+  setup the machine is fully power-cut overnight, so the observed pattern
+  in InfluxDB looks like a daily reset — but the driver is the nightly
+  power cycle, not calendar time. A better semantic name than "cups_today"
+  is therefore `cups_since_cold_start` or `cups_this_session`.
 - `0x000F` increments by **1 per brew command regardless of cups** — and is
-  reset by cleaning. This is the real "brews since cleaning" counter.
+  reset by cleaning. Survives cold-starts (EEPROM value that is NOT
+  overwritten during power-up init). This is the real
+  "brews since cleaning" counter.
 
 ### Brew-event counter anomaly (`0x000D`, `0x0010`)
 
@@ -333,6 +361,11 @@ Bit 1 is not a "Pflege pending" flag (display prompt does not correspond to
 bit 1 = 0); rather, it is "cleaning cycle actively running" — it goes to 0
 when the user initiates the cleaning and back to 1 when the cycle completes.
 
+Bit 0 similarly is cleared by an extended cool-down. In this user's setup,
+the ~8h overnight power-off is enough to restore bit 0 to 0 (cold-start),
+so the "extended cool-down" that Session 4 hypothesized is confirmed as
+*complete power loss for multiple hours*, not just machine standby.
+
 The IC:bit1 InfluxDB history from past weeks (26 on-events, 51 off-events over
 7 days) is consistent with real machine states (cleaning-in-progress during
 brief internal cycles) rather than pure noise.
@@ -375,6 +408,15 @@ sensors, then watching InfluxDB trajectories** over days/weeks.
   observation window will distinguish.
 - **Strong-double `+3` on 0x000D** — is this reproducible, or an artefact of the
   specific state the machine was in today? Rerun on a different day.
+- **Exact `0x000E` reset trigger** — confirmed that it goes to 0 during the
+  cleaning cycle and that an overnight cold-start leaves it at 0 the next
+  morning. Not yet confirmed: does the overnight reset happen on the
+  cold-start itself (firmware init zeros it), on the next `AN:01` wake-up,
+  or on some other event between shutdown and wake-up? Would need a test
+  without the automation power-cut.
+- **Rinse counter growth rate `~8/day`** — partially explained by the
+  nightly idle-timeout auto-rinse (+1/day), leaving `~7/day` from
+  user-triggered rinses. Would drop to `~7/day` without the automation.
 
 ---
 
