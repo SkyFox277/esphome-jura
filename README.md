@@ -132,8 +132,16 @@ esphome upload --device jura-coffee-f50.local jura-coffee-f50.yaml
 | `num_clean`              | sensor  | —       | Counter: cleanings (EEPROM addr 0x0008)                                  |
 | `num_rinse`              | sensor  | —       | Counter: rinse cycles (EEPROM addr 0x0007)                               |
 | `num_descale`            | sensor  | —       | Counter: descaling cycles (EEPROM addr 0x0009)                           |
-| `num_coffees_since_clean`| sensor  | —       | Counter: coffees brewed since last cleaning (EEPROM addr 0x000E)         |
-| `last_response`          | sensor  | —       | Text sensor: last `send_command` response                                |
+| `num_coffees_since_clean`| sensor  | —       | Counter: EEPROM addr 0x000E — **misnamed** (session 4): actually a cups counter with daily resets, not a since-cleaning counter. Kept for InfluxDB continuity; will be renamed in v2.0 |
+| `num_brews_since_clean`    | sensor      | —       | Counter: EEPROM addr 0x000F — the real brews-since-cleaning counter, +1 per brew command, reset on cleaning (session 4)     |
+| `maintenance_weeks_since_clean`| sensor  | —       | EEPROM addr 0x0005 high byte — cleaning-reset time ticker (hypothesis: ~1/week), leading Pflege-trigger candidate (session 4) |
+| `maintenance_config_0x0005_low`| sensor  | —       | EEPROM addr 0x0005 low byte — constant configuration value (=20 on F50), unchanged by cleaning                              |
+| `maintenance_counter_0x0011` | sensor    | —       | EEPROM addr 0x0011 — unknown cleaning-reset counter, grows ~7.6/day on F50, driver unknown (session 4)                      |
+| `maintenance_counter_0x0016` | sensor    | —       | EEPROM addr 0x0016 — unknown cleaning-reset counter, grows ~2/day on F50, driver unknown (session 4)                        |
+| `ic_byte0_raw`             | sensor      | —       | Numeric IC: byte 0 (0-255) — preserves all 8 bits in InfluxDB for retroactive bit derivation via HA template sensors         |
+| `raw_page_rt0000`          | text_sensor | —       | Raw RT:0000 response (67-char hex string) — forensic record of the full page 0 state on every EEPROM poll                   |
+| `raw_page_rt1000`          | text_sensor | —       | Raw RT:1000 response — forensic record of the full page 1 (extended EEPROM 0x0010-0x001F) on every EEPROM poll              |
+| `last_response`            | text_sensor | —       | Text sensor: last `send_command` response                                                                                    |
 
 ## Sending Commands
 
